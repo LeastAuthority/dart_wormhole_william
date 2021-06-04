@@ -9,7 +9,7 @@ set(PLUGIN_NAME "dart_wormhole_william_plugin")
 add_library(${PLUGIN_NAME} SHARED
   "dart_wormhole_william_plugin.cc"
 )
-target_link_libraries(${PLUGIN_NAME} ${CMAKE_SOURCE_DIR}/../wormhole-william/wormhole.a)
+#target_link_libraries(${PLUGIN_NAME} ${CMAKE_SOURCE_DIR}/../wormhole-william/wormhole.a)
 apply_standard_settings(${PLUGIN_NAME})
 set_target_properties(${PLUGIN_NAME} PROPERTIES
   CXX_VISIBILITY_PRESET hidden)

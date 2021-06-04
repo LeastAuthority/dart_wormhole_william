@@ -1,6 +1,7 @@
 import 'dart:io' show Platform, Directory;
 import 'dart:ffi';
 
+import 'package:stack_trace/stack_trace.dart' show Frame;
 import 'package:ffi/ffi.dart';
 import 'package:dart_wormhole_william/dart_wormhole_william.dart';
 import 'package:path/path.dart' as path;
@@ -21,23 +22,29 @@ typedef ClientRecvText = int Function(
     int, Pointer<Utf8> goClientIndex, Pointer<Pointer<Utf8>> msg);
 
 class ClientNative {
+  final String dylibDir;
+
   late final DynamicLibrary? _dylib;
+
   late final NewClient newClient;
+
   late final ClientSendText clientSendText;
+
   late final ClientRecvText clientRecvText;
 
-  ClientNative() {
-    String _libraryPath =
-        path.join(Directory.current.path, 'wormhole-william', 'wormhole.so');
+  String get dylibPath {
+    String libraryPath = path.join(dylibDir, 'wormhole.so');
     if (Platform.isMacOS) {
-      _libraryPath = path.join(
-          Directory.current.path, 'wormhole-william', 'wormhole.dylib');
+      libraryPath = path.join(dylibDir, 'wormhole.dylib');
     }
     if (Platform.isWindows) {
-      _libraryPath =
-          path.join(Directory.current.path, 'wormhole-william', 'wormhole.dll');
+      libraryPath = path.join(dylibDir, 'wormhole.dll');
     }
-    _dylib = DynamicLibrary.open(_libraryPath);
+    return libraryPath;
+  }
+
+  ClientNative({required String this.dylibDir}) {
+    _dylib = DynamicLibrary.open(dylibPath);
 
     newClient =
         _dylib!.lookup<NativeFunction<NewClientFunc>>('NewClient').asFunction();
@@ -52,24 +59,46 @@ class ClientNative {
   }
 }
 
-class Client extends ClientNative {
+class Client {
+  // TODO: should be private but how to test?
   late int goClient;
 
+  late ClientNative _native;
+
+  // TODO: config
   Client() {
-    // TODO: config
-    this.goClient = ClientNative().newClient();
+    // TODO: something better?
+//    String _dylibDir = path.join(
+//        path.dirname(Frame.caller(1).uri.path), '..', 'wormhole-william', 'build');
+    // TODO: figure this out!
+    String _dylibDir = '/home/bwhite/Projects/flutter_wormhole_gui/dart_wormhole_william/wormhole-william/build';
+
+    _native = ClientNative(dylibDir: _dylibDir);
+    this.goClient = _native.newClient();
   }
 
   String sendText(String msg) {
     Pointer<Pointer<Utf8>> _codeOut = calloc();
     final int statusCode =
-        ClientNative().clientSendText(goClient, msg.toNativeUtf8(), _codeOut);
+        _native.clientSendText(goClient, msg.toNativeUtf8(), _codeOut);
     // TODO: error handling (statusCode != 0)
 
     final Pointer<Utf8> _code = _codeOut.value;
     calloc.free(_codeOut);
 
-    // TODO: error handling
     return _code.toDartString();
+  }
+
+  String recvText(String code) {
+    Pointer<Pointer<Utf8>> _msgOut = calloc();
+    final int statusCode =
+        _native.clientRecvText(goClient, code.toNativeUtf8(), _msgOut);
+    // TODO: error handling (statusCode != 0)
+
+    final Pointer<Utf8> _msg = _msgOut.value;
+    calloc.free(_msgOut);
+
+    // TODO: error handling
+    return _msg.toDartString();
   }
 }
