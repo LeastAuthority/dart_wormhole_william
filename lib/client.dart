@@ -33,12 +33,12 @@ class ClientNative {
   late final ClientRecvText clientRecvText;
 
   String get dylibPath {
-    String libraryPath = path.join(dylibDir, 'wormhole.so');
+    String libraryPath = path.join("libdart_wormhole_william_plugin.so");
     if (Platform.isMacOS) {
-      libraryPath = path.join(dylibDir, 'wormhole.dylib');
+      libraryPath = path.join('libdart_wormhole_william_plugin.dylib');
     }
     if (Platform.isWindows) {
-      libraryPath = path.join(dylibDir, 'wormhole.dll');
+      libraryPath = path.join('libdart_wormhole_william_plugin.dll');
     }
     return libraryPath;
   }
@@ -71,7 +71,8 @@ class Client {
 //    String _dylibDir = path.join(
 //        path.dirname(Frame.caller(1).uri.path), '..', 'wormhole-william', 'build');
     // TODO: figure this out!
-    String _dylibDir = '/home/bwhite/Projects/flutter_wormhole_gui/dart_wormhole_william/wormhole-william/build';
+    // String _dylibDir = '/home/bwhite/Projects/flutter_wormhole_gui/dart_wormhole_william/wormhole-william/build';
+    String _dylibDir = 'lib';
 
     _native = ClientNative(dylibDir: _dylibDir);
     this.goClient = _native.newClient();
