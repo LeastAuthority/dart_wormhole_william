@@ -22,8 +22,6 @@ typedef ClientRecvText = int Function(
     int, Pointer<Utf8> goClientIndex, Pointer<Pointer<Utf8>> msg);
 
 class ClientNative {
-  final String dylibDir;
-
   late final DynamicLibrary? _dylib;
 
   late final NewClient newClient;
@@ -43,7 +41,7 @@ class ClientNative {
     return libraryPath;
   }
 
-  ClientNative({required String this.dylibDir}) {
+  ClientNative() {
     _dylib = DynamicLibrary.open(dylibPath);
 
     newClient =
@@ -65,24 +63,20 @@ class Client {
 
   late ClientNative _native;
 
-  // TODO: config
   Client() {
-    // TODO: something better?
-//    String _dylibDir = path.join(
-//        path.dirname(Frame.caller(1).uri.path), '..', 'wormhole-william', 'build');
-    // TODO: figure this out!
-    // String _dylibDir = '/home/bwhite/Projects/flutter_wormhole_gui/dart_wormhole_william/wormhole-william/build';
-    String _dylibDir = 'lib';
-
-    _native = ClientNative(dylibDir: _dylibDir);
-    this.goClient = _native.newClient();
+    _native = ClientNative();
+    this.goClient = _native.newClient.call();
   }
 
   String sendText(String msg) {
     Pointer<Pointer<Utf8>> _codeOut = calloc();
     final int statusCode =
         _native.clientSendText(goClient, msg.toNativeUtf8(), _codeOut);
+
     // TODO: error handling (statusCode != 0)
+    if (statusCode != 0) {
+      throw "Failed to send text. Error code: $statusCode";
+    }
 
     final Pointer<Utf8> _code = _codeOut.value;
     calloc.free(_codeOut);

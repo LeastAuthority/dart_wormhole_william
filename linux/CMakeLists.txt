@@ -2,31 +2,31 @@ cmake_minimum_required(VERSION 3.10)
 set(PROJECT_NAME "dart_wormhole_william")
 project(${PROJECT_NAME} LANGUAGES CXX C)
 
+set(WORMHOLE_WILLIAM_GO_DIR
+    ${CMAKE_SOURCE_DIR}/../dart_wormhole_william/wormhole-william)
+
 # This value is used when generating builds using this plugin, so it must not be
 # changed
 set(PLUGIN_NAME "dart_wormhole_william_plugin")
 
-execute_process(
-  COMMAND go tool cgo c/client.c.go
-  COMMAND_ERROR_IS_FATAL LAST
-  WORKING_DIRECTORY
-    ${CMAKE_SOURCE_DIR}/../dart_wormhole_william/wormhole-william)
-
-set(WORMHOLE_C_WRAPPER_BASE
-    "${CMAKE_SOURCE_DIR}/../dart_wormhole_william/wormhole-william/_obj")
-file(GLOB_RECURSE WORMHOLE_C_WRAPPER_SRC ${WORMHOLE_C_WRAPPER_BASE}/*.c
-     ${WORMHOLE_C_WRAPPER_BASE}/*.h)
-add_library(${PLUGIN_NAME} SHARED
-            "dart_wormhole_william_plugin.cc;${WORMHOLE_C_WRAPPER_SRC}")
+add_library(${PLUGIN_NAME} SHARED "dart_wormhole_william_plugin.cc")
 
 target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
-target_include_directories(
-  ${PLUGIN_NAME}
-  INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include;${WORMHOLE_C_WRAPPER_BASE}")
+target_include_directories(${PLUGIN_NAME}
+                           INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter)
 target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
+target_link_libraries(${PLUGIN_NAME} PUBLIC ${WORMHOLE_WILLIAM_LIB})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 
 # List of absolute paths to libraries that should be bundled with the plugin
+
+include(../CMakeLists.txt)
+
+include(CMakePrintHelpers)
+cmake_print_variables(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${PLUGIN_NAME}
+                      CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+
 set(dart_wormhole_william_bundled_libraries
-    ""
+    "" ${WORMHOLE_WILLIAM_LIB}
     PARENT_SCOPE)
