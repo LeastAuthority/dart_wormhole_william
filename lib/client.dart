@@ -31,7 +31,7 @@ class ClientNative {
   late final ClientRecvText clientRecvText;
 
   String get dylibPath {
-    String libraryPath = path.join("libdart_wormhole_william_plugin.so");
+    String libraryPath = path.join('libdart_wormhole_william_plugin.so');
     if (Platform.isMacOS) {
       libraryPath = path.join('libdart_wormhole_william_plugin.dylib');
     }
@@ -73,7 +73,6 @@ class Client {
     final int statusCode =
         _native.clientSendText(goClient, msg.toNativeUtf8(), _codeOut);
 
-    // TODO: error handling (statusCode != 0)
     if (statusCode != 0) {
       throw "Failed to send text. Error code: $statusCode";
     }
