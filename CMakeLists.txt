@@ -15,7 +15,7 @@ add_custom_target(
           ${EXPORT} GOOS=${GOOS}&&
           ${EXPORT} CC_FOR_TARGET=${CC_FOR_TARGET}&&
           ${EXPORT} CC=${CC_FOR_TARGET}&&
-    go build -buildmode=c-shared -o ${WORMHOLE_WILLIAM_LIB} ./c/client.c.go
+    go build -buildmode=c-shared -o ${WORMHOLE_WILLIAM_LIB} ./c
   USES_TERMINAL
   BYPRODUCTS ${WORMHOLE_WILLIAM_LIB}
   WORKING_DIRECTORY ${WORMHOLE_WILLIAM_GO_DIR})

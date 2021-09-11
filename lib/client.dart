@@ -9,6 +9,10 @@ import 'package:path/path.dart' as path;
 import 'package:ffi/ffi.dart';
 // import 'dart:logging';
 
+typedef CallbackNative = Void Function(Pointer<Void> result, Int32 errCode);
+// TODO: err codes should eventually be an enum.
+typedef Callback = void Function(Pointer<Void> result, int errCode);
+
 typedef NewClientFunc = Int32 Function();
 typedef NewClient = int Function();
 
@@ -18,15 +22,21 @@ typedef ClientSendTextFunc = Int32 Function(
 typedef ClientSendText = int Function(
     int, Pointer<Utf8>, Pointer<Pointer<Utf8>>);
 
-typedef ClientSendFileFunc = Int32 Function(
+typedef ClientSendFileNative = Int32 Function(
     Uint32 goClient,
     Pointer<Utf8> fileName,
     Uint32 length,
     Pointer<Int8> fileBytes,
-    Pointer<Pointer<Utf8>> codePtr);
+    Pointer<Pointer<Utf8>> codePtr,
+    Pointer<NativeFunction<CallbackNative>> callback);
 
 typedef ClientSendFile = int Function(
-    int, Pointer<Utf8>, int, Pointer<Int8>, Pointer<Pointer<Utf8>>);
+    int,
+    Pointer<Utf8>,
+    int,
+    Pointer<Int8>,
+    Pointer<Pointer<Utf8>>,
+    Pointer<NativeFunction<CallbackNative>>);
 
 typedef ClientRecvTextFunc = Int32 Function(
     Uint32 goClient, Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgPtr);
@@ -71,7 +81,7 @@ class ClientNative {
         .asFunction();
 
     clientSendFile = _dylib!
-        .lookup<NativeFunction<ClientSendFileFunc>>("ClientSendFile")
+        .lookup<NativeFunction<ClientSendFileNative>>("ClientSendFile")
         .asFunction();
   }
 }
@@ -115,22 +125,31 @@ class Client {
     return _msg.toDartString();
   }
 
-  String sendFile(String fileName, int length, List<int>? fileBytes) {
-    if (fileBytes == null) throw "Sending null file";
-    Pointer<Pointer<Utf8>> _msgOut = calloc();
+  String sendFile(String fileName, int length, Uint8List fileBytes) {
+    Pointer<Pointer<Utf8>> codeC = calloc();
+    // TODO: use Uint8 instead (?)
     final Pointer<Int8> bytes =
         malloc(length); // Allocator<Int8>.allocate(length);
     // Int8Array(length);
+
+    // TODO: figure out if we can avoid copying data.
+    // e.g. Uint8Array
     for (int i = 0; i < fileBytes.length; i++) {
       bytes[i] = fileBytes[i];
     }
 
+    final void Function(Pointer<Void>, int) callback = (Pointer<Void> result, int errCode) {
+      final resultInt = result.cast<Int32>();
+      print("resultInt: ${resultInt.value}");
+    };
+    final Pointer<NativeFunction<CallbackNative>> callbackNative = Pointer.fromFunction<CallbackNative>(callback);
+
     final int statusCode = _native.clientSendFile(
-        goClient, fileName.toNativeUtf8(), length, bytes, _msgOut);
+        goClient, fileName.toNativeUtf8(), length, bytes, codeC, callbackNative);
     // TODO: error handling (statusCode != 0)
 
-    final Pointer<Utf8> _msg = _msgOut.value;
-    calloc.free(_msgOut);
+    final Pointer<Utf8> _msg = codeC.value;
+    calloc.free(codeC);
 
     // TODO: error handling
     return _msg.toDartString();
