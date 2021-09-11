@@ -11,11 +11,11 @@ add_custom_target(
   BUILD_GO_LIBRARY ALL
   COMMENT Building go static library
   COMMAND ${EXPORT} CGO_ENABLED=1&&
-  	  ${EXPORT} GOARCH=${GOARCH}&&
-	  ${EXPORT} GOOS=${GOOS}&&
-	  ${EXPORT} CC_FOR_TARGET=${CC_FOR_TARGET}&&
-	  ${EXPORT} CC=${CC_FOR_TARGET}&&
-	  go build -buildmode=c-shared -o ${WORMHOLE_WILLIAM_LIB} ./c/client.c.go
+          ${EXPORT} GOARCH=${GOARCH}&&
+          ${EXPORT} GOOS=${GOOS}&&
+          ${EXPORT} CC_FOR_TARGET=${CC_FOR_TARGET}&&
+          ${EXPORT} CC=${CC_FOR_TARGET}&&
+    go build -buildmode=c-shared -o ${WORMHOLE_WILLIAM_LIB} ./c/client.c.go
   USES_TERMINAL
   BYPRODUCTS ${WORMHOLE_WILLIAM_LIB}
   WORKING_DIRECTORY ${WORMHOLE_WILLIAM_GO_DIR})

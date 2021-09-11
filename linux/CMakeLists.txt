@@ -8,6 +8,7 @@ set(WORMHOLE_WILLIAM_GO_DIR
 # This value is used when generating builds using this plugin, so it must not be
 # changed
 set(PLUGIN_NAME "dart_wormhole_william_plugin")
+apply_standard_settings(${PLUGIN_NAME})
 
 add_library(${PLUGIN_NAME} SHARED "dart_wormhole_william_plugin.cc")
 
@@ -16,17 +17,18 @@ target_include_directories(${PLUGIN_NAME}
                            INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter)
 target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
-target_link_libraries(${PLUGIN_NAME} PUBLIC ${WORMHOLE_WILLIAM_LIB})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}_${PLUGIN_NAME})
 
 # List of absolute paths to libraries that should be bundled with the plugin
 
 include(../CMakeLists.txt)
 
+set(dart_wormhole_william_bundled_libraries
+    ""
+    PARENT_SCOPE)
+
 include(CMakePrintHelpers)
 cmake_print_variables(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${PLUGIN_NAME}
                       CMAKE_RUNTIME_OUTPUT_DIRECTORY)
 
-set(dart_wormhole_william_bundled_libraries
-    "" ${WORMHOLE_WILLIAM_LIB}
-    PARENT_SCOPE)

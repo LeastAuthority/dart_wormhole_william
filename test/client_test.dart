@@ -11,11 +11,10 @@ void main() {
   group('ClientNative', () {
 //    String _dylibDir = path.join(
 //        Directory.current.path, '..', 'wormhole-william', 'build');
-  // TODO: figure this out!
-  String _dylibDir = '/home/bwhite/Projects/flutter_wormhole_gui/dart_wormhole_william/wormhole-william/build';
+    // TODO: figure this out!
 
     test('#newClient', () {
-      ClientNative _native = ClientNative(dylibDir: _dylibDir);
+      ClientNative _native = ClientNative();
       int goClient = _native.newClient();
       print("goClient: $goClient");
 
@@ -36,13 +35,13 @@ void main() {
       //  "Unsupported operation: Operation 'toDartString' not allowed on a 'nullptr'" unless initially set.
       codeOutC.value = ''.toNativeUtf8();
 
-      _native = ClientNative(dylibDir: _dylibDir);
+      _native = ClientNative();
       goClient = _native.newClient();
+
       expect(goClient, isNonNegative);
       expect(goClient, isNonZero);
 
-      int statusCode =
-      _native.clientSendText(goClient, testMsgC, codeOutC);
+      int statusCode = _native.clientSendText(goClient, testMsgC, codeOutC);
       expect(statusCode, isZero);
       expect(codeOutC.value, isNotNull);
       expect(codeOutC.value.toDartString(), isNotEmpty);
