@@ -1,5 +1,7 @@
-import 'dart:io' show Platform, Directory;
+import 'dart:async';
 import 'dart:ffi';
+import 'dart:io' show Platform, Directory;
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
@@ -9,18 +11,14 @@ import 'package:path/path.dart' as path;
 import 'package:ffi/ffi.dart';
 // import 'dart:logging';
 
-typedef CallbackNative = Void Function(Pointer<Void> result, Int32 errCode);
-// TODO: err codes should eventually be an enum.
-typedef Callback = void Function(Pointer<Void> result, int errCode);
-
 typedef NewClientFunc = Int32 Function();
 typedef NewClient = int Function();
 
-typedef ClientSendTextFunc = Int32 Function(
-    Uint32 goClient, Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codePtr);
+typedef ClientSendTextNative = Int32 Function(
+    Uint32 goClient, Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codePtr, IntPtr);
 
 typedef ClientSendText = int Function(
-    int, Pointer<Utf8>, Pointer<Pointer<Utf8>>);
+    int, Pointer<Utf8>, Pointer<Pointer<Utf8>>, int);
 
 typedef ClientSendFileNative = Int32 Function(
     Uint32 goClient,
@@ -28,7 +26,7 @@ typedef ClientSendFileNative = Int32 Function(
     Uint32 length,
     Pointer<Int8> fileBytes,
     Pointer<Pointer<Utf8>> codePtr,
-    Pointer<NativeFunction<CallbackNative>> callback);
+    IntPtr callback_port);
 
 typedef ClientSendFile = int Function(
     int,
@@ -36,7 +34,7 @@ typedef ClientSendFile = int Function(
     int,
     Pointer<Int8>,
     Pointer<Pointer<Utf8>>,
-    Pointer<NativeFunction<CallbackNative>>);
+    IntPtr callback_port);
 
 typedef ClientRecvTextFunc = Int32 Function(
     Uint32 goClient, Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgPtr);
@@ -49,7 +47,7 @@ class ClientNative {
 
   late final NewClient newClient;
 
-  late final ClientSendText clientSendText;
+  late final Pointer<NativeFunction<ClientSendTextNative>> clientSendText;
 
   late final ClientRecvText clientRecvText;
 
@@ -73,17 +71,24 @@ class ClientNative {
         _dylib!.lookup<NativeFunction<NewClientFunc>>('NewClient').asFunction();
 
     clientSendText = _dylib!
-        .lookup<NativeFunction<ClientSendTextFunc>>('ClientSendText')
-        .asFunction();
+        .lookup<NativeFunction<ClientSendTextNative>>('ClientSendText');
+        // .asFunction();
 
     clientRecvText = _dylib!
         .lookup<NativeFunction<ClientRecvTextFunc>>('ClientRecvText')
         .asFunction();
 
-    clientSendFile = _dylib!
-        .lookup<NativeFunction<ClientSendFileNative>>("ClientSendFile")
-        .asFunction();
+    // clientSendFile = _dylib!
+    //     .lookup<NativeFunction<ClientSendFileNative>>("ClientSendFile")
+    //     .asFunction();
   }
+}
+
+class SendResult {
+  String code;
+  Future<void> done;
+
+  SendResult(this.code, this.done);
 }
 
 class Client {
@@ -97,10 +102,27 @@ class Client {
     this.goClient = _native.newClient.call();
   }
 
-  String sendText(String msg) {
+  Future<SendResult> sendText(String msg) {
+    final done = Completer<void>();
+    final callbackPort = ReceivePort()
+    ..listen((dynamic msg) {
+      done.complete(msg);
+    });
+
     Pointer<Pointer<Utf8>> _codeOut = calloc();
-    final int statusCode =
-        _native.clientSendText(goClient, msg.toNativeUtf8(), _codeOut);
+    // final Future<SendResult> = _native.clientSendText(...)
+    // final int statusCode =
+    //     _native.clientSendText(goClient, msg.toNativeUtf8(), _codeOut, callbackPort.sendPort.nativePort);
+    // TODO: use facy functional combinators to make this suck less.
+    // call something in async_callback that takes _native.clientSendText, the args, the nativeSendPort.
+
+    // callbackPort.sendPort.nativePort
+    // also need to pass N args..
+
+    // _native.async(_native.clientSendText.address, watever.sendPort.NativePort);
+    final rxPort = ReceivePort()..listen();
+
+    _native.client_send_text(goClient, msg.toNativeUtf8(), _codeOut, rxPort.sendPort.NativePort);
 
     if (statusCode != 0) {
       throw "Failed to send text. Error code: $statusCode";
@@ -109,7 +131,8 @@ class Client {
     final Pointer<Utf8> _code = _codeOut.value;
     calloc.free(_codeOut);
 
-    return _code.toDartString();
+    final result = SendResult(_code.toDartString(), done.future);
+    return Future.value(result);
   }
 
   String recvText(String code) {
@@ -125,33 +148,33 @@ class Client {
     return _msg.toDartString();
   }
 
-  String sendFile(String fileName, int length, Uint8List fileBytes) {
-    Pointer<Pointer<Utf8>> codeC = calloc();
-    // TODO: use Uint8 instead (?)
-    final Pointer<Int8> bytes =
-        malloc(length); // Allocator<Int8>.allocate(length);
-    // Int8Array(length);
-
-    // TODO: figure out if we can avoid copying data.
-    // e.g. Uint8Array
-    for (int i = 0; i < fileBytes.length; i++) {
-      bytes[i] = fileBytes[i];
-    }
-
-    final void Function(Pointer<Void>, int) callback = (Pointer<Void> result, int errCode) {
-      final resultInt = result.cast<Int32>();
-      print("resultInt: ${resultInt.value}");
-    };
-    final Pointer<NativeFunction<CallbackNative>> callbackNative = Pointer.fromFunction<CallbackNative>(callback);
-
-    final int statusCode = _native.clientSendFile(
-        goClient, fileName.toNativeUtf8(), length, bytes, codeC, callbackNative);
-    // TODO: error handling (statusCode != 0)
-
-    final Pointer<Utf8> _msg = codeC.value;
-    calloc.free(codeC);
-
-    // TODO: error handling
-    return _msg.toDartString();
-  }
+  // String sendFile(String fileName, int length, Uint8List fileBytes) {
+  //   Pointer<Pointer<Utf8>> codeC = calloc();
+  //   // TODO: use Uint8 instead (?)
+  //   final Pointer<Int8> bytes =
+  //       malloc(length); // Allocator<Int8>.allocate(length);
+  //   // Int8Array(length);
+  //
+  //   // TODO: figure out if we can avoid copying data.
+  //   // e.g. Uint8Array
+  //   for (int i = 0; i < fileBytes.length; i++) {
+  //     bytes[i] = fileBytes[i];
+  //   }
+  //
+  //   final void Function(Pointer<Void>, int) callback = (Pointer<Void> result, int errCode) {
+  //     final resultInt = result.cast<Int32>();
+  //     print("resultInt: ${resultInt.value}");
+  //   };
+  //   final Pointer<NativeFunction<CallbackNative>> callbackNative = Pointer.fromFunction<CallbackNative>(callback);
+  //
+  //   final int statusCode = _native.clientSendFile(
+  //       goClient, fileName.toNativeUtf8(), length, bytes, codeC, callbackNative);
+  //   // TODO: error handling (statusCode != 0)
+  //
+  //   final Pointer<Utf8> _msg = codeC.value;
+  //   calloc.free(codeC);
+  //
+  //   // TODO: error handling
+  //   return _msg.toDartString();
+  // }
 }
