@@ -19,7 +19,7 @@ add_custom_target(
     ${EXPORT} GOOS=${GOOS}&&
     ${EXPORT} CC_FOR_TARGET=${CC_FOR_TARGET}&&
     ${EXPORT} CC=${CC_FOR_TARGET}&&
-    go build -buildmode=c-shared -o ${WORMHOLE_WILLIAM_LIB} c/client.c.go c/callback.c.go
+    go build -buildmode=c-shared -o ${WORMHOLE_WILLIAM_LIB} ./c/
   USES_TERMINAL
   DEPENDS ${WORMHOLE_WILLIAM_SRC_FILES}
   BYPRODUCTS ${WORMHOLE_WILLIAM_LIB}
