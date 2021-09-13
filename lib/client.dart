@@ -11,7 +11,7 @@ import 'package:path/path.dart' as path;
 import 'package:ffi/ffi.dart';
 // import 'dart:logging';
 
-typedef NewClientFunc = Int32 Function();
+typedef NewClientFunc = IntPtr Function();
 typedef NewClient = int Function();
 
 typedef NativeCallbackFunction = Void Function(
