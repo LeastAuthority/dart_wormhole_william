@@ -14,11 +14,14 @@ import 'package:ffi/ffi.dart';
 typedef NewClientFunc = Int32 Function();
 typedef NewClient = int Function();
 
-typedef ClientSendTextNative = Int32 Function(
-    Uint32 goClient, Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codePtr, IntPtr);
+typedef NativeCallbackFunction = Void Function(
+    Pointer<Void> clientContext, Pointer<Void> result, Int32 exitCode);
+
+typedef ClientSendTextNative = Int32 Function(Pointer<Void> goClient,
+    Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codePtr, IntPtr port);
 
 typedef ClientSendText = int Function(
-    int, Pointer<Utf8>, Pointer<Pointer<Utf8>>, int);
+    Pointer<Void>, Pointer<Utf8>, Pointer<Pointer<Utf8>>, int);
 
 typedef ClientSendFileNative = Int32 Function(
     Uint32 goClient,
@@ -28,13 +31,8 @@ typedef ClientSendFileNative = Int32 Function(
     Pointer<Pointer<Utf8>> codePtr,
     IntPtr callback_port);
 
-typedef ClientSendFile = int Function(
-    int,
-    Pointer<Utf8>,
-    int,
-    Pointer<Int8>,
-    Pointer<Pointer<Utf8>>,
-    IntPtr callback_port);
+typedef ClientSendFile = int Function(int, Pointer<Utf8>, int, Pointer<Int8>,
+    Pointer<Pointer<Utf8>>, IntPtr callback_port);
 
 typedef ClientRecvTextFunc = Int32 Function(
     Uint32 goClient, Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgPtr);
@@ -43,11 +41,15 @@ typedef ClientRecvText = int Function(
     int, Pointer<Utf8> goClientIndex, Pointer<Pointer<Utf8>> msg);
 
 class ClientNative {
-  late final DynamicLibrary? _dylib;
+  late final DynamicLibrary? _wormholeWilliamLib;
+  late final DynamicLibrary? _asyncCallbackLib;
 
   late final NewClient newClient;
 
   late final Pointer<NativeFunction<ClientSendTextNative>> clientSendText;
+
+  late final Int32 Function(Uint32, Pointer<Utf8>, Uint32, Pointer<Int8>,
+      Pointer<Pointer<Utf8>>, IntPtr) clientSendTextDart;
 
   late final ClientRecvText clientRecvText;
 
@@ -56,25 +58,47 @@ class ClientNative {
   String get dylibPath {
     var libraryName = "dart_wormhole_william_plugin";
     if (Platform.isMacOS) {
-      return "lib${libraryName}.dylib";
+      return "lib$libraryName.dylib";
     } else if (Platform.isWindows) {
-      return "lib${libraryName}.dll";
+      return "lib$libraryName.dll";
     } else {
-      return "lib${libraryName}.so";
+      return "lib$libraryName.so";
+    }
+  }
+
+  String libName(String libraryName, {String? version}) {
+    final String baseName;
+
+    if (Platform.isMacOS) {
+      baseName = "lib$libraryName.dylib";
+    } else if (Platform.isWindows) {
+      baseName = "lib$libraryName.dll";
+    } else {
+      baseName = "lib$libraryName.so";
+    }
+
+    if(version != null) {
+      return "$baseName.$version";
+    } else {
+      return "$baseName";
     }
   }
 
   ClientNative() {
-    _dylib = DynamicLibrary.open(dylibPath);
+    _wormholeWilliamLib =
+        DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
+    _asyncCallbackLib =
+        DynamicLibrary.open(libName("bindings", version: "1.0.0"));
 
-    newClient =
-        _dylib!.lookup<NativeFunction<NewClientFunc>>('NewClient').asFunction();
+    newClient = _wormholeWilliamLib!
+        .lookup<NativeFunction<NewClientFunc>>('NewClient')
+        .asFunction();
 
-    clientSendText = _dylib!
-        .lookup<NativeFunction<ClientSendTextNative>>('ClientSendText');
-        // .asFunction();
+    clientSendText = _asyncCallbackLib!
+        .lookup<NativeFunction<ClientSendTextNative>>('client_send_text');
+    // .asFunction();
 
-    clientRecvText = _dylib!
+    clientRecvText = _wormholeWilliamLib!
         .lookup<NativeFunction<ClientRecvTextFunc>>('ClientRecvText')
         .asFunction();
 
@@ -104,10 +128,10 @@ class Client {
 
   Future<SendResult> sendText(String msg) {
     final done = Completer<void>();
-    final callbackPort = ReceivePort()
-    ..listen((dynamic msg) {
-      done.complete(msg);
-    });
+    //final callbackPort = ReceivePort()
+    //..listen((dynamic msg) {
+    //done.complete(msg);
+    //});
 
     Pointer<Pointer<Utf8>> _codeOut = calloc();
     // final Future<SendResult> = _native.clientSendText(...)
@@ -120,9 +144,16 @@ class Client {
     // also need to pass N args..
 
     // _native.async(_native.clientSendText.address, watever.sendPort.NativePort);
-    final rxPort = ReceivePort()..listen();
+    final rxPort = ReceivePort()
+      ..listen((msg) {
+        done.complete(msg);
+      });
 
-    _native.client_send_text(goClient, msg.toNativeUtf8(), _codeOut, rxPort.sendPort.NativePort);
+    final statusCode = _native.clientSendText.asFunction<ClientSendText>()(
+        Pointer<Void>.fromAddress(goClient),
+        msg.toNativeUtf8(),
+        _codeOut,
+        rxPort.sendPort.nativePort);
 
     if (statusCode != 0) {
       throw "Failed to send text. Error code: $statusCode";

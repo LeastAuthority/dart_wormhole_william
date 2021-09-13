@@ -1,6 +1,8 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.21.2)
 set(PROJECT_NAME "dart_wormhole_william")
 project(${PROJECT_NAME} LANGUAGES CXX C)
+
+include(${CMAKE_SOURCE_DIR}/../dart_wormhole_william/lib/src/CMakeLists.txt)
 
 set(WORMHOLE_WILLIAM_GO_DIR
     ${CMAKE_SOURCE_DIR}/../dart_wormhole_william/wormhole-william)
@@ -16,17 +18,18 @@ target_include_directories(${PLUGIN_NAME}
                            INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter)
 target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
-target_link_libraries(${PLUGIN_NAME} PUBLIC ${WORMHOLE_WILLIAM_LIB})
+target_link_libraries(${PLUGIN_NAME} PRIVATE wormhole_william)
+# target_link_libraries(${PLUGIN_NAME} PUBLIC $)
+# target_link_libraries(${PLUGIN_NAME} PRIVATE bindings)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 
 # List of absolute paths to libraries that should be bundled with the plugin
 
-include(../CMakeLists.txt)
-
 include(CMakePrintHelpers)
 cmake_print_variables(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${PLUGIN_NAME}
                       CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+include(../CMakeLists.txt)
 
 set(dart_wormhole_william_bundled_libraries
-    "" ${WORMHOLE_WILLIAM_LIB}
-    PARENT_SCOPE)
+  "" $<TARGET_FILE:wormhole_william> $<TARGET_FILE:bindings>
+  PARENT_SCOPE)
