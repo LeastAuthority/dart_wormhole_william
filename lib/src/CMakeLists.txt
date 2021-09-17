@@ -2,12 +2,17 @@
 # LANGUAGES C)
 
 # set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
+
+if(NOT DEFINED ENV{FLUTTER_HOME})
+  message(FATAL_ERROR "Flutter home must be defined")
+endif()
+
 add_library(
   bindings SHARED
   ${CMAKE_SOURCE_DIR}/../dart_wormhole_william/lib/src/async_callback.c
-  /opt/flutter/bin/cache/dart-sdk/include/dart_api_dl.c)
+  $ENV{FLUTTER_HOME}/bin/cache/dart-sdk/include/dart_api_dl.c)
 target_include_directories(bindings
-                           PUBLIC /opt/flutter/bin/cache/dart-sdk/include)
+  PUBLIC $ENV{FLUTTER_HOME}/bin/cache/dart-sdk/include)
 target_include_directories(bindings PRIVATE flutter_INCLUDE_DIRECTORIES)
 target_include_directories(bindings PRIVATE dart_INCLUDE_DIRECTORIES)
 target_link_libraries(bindings PUBLIC flutter)
