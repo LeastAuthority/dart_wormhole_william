@@ -14,11 +14,11 @@ import 'package:ffi/ffi.dart';
 typedef NewClientNative = IntPtr Function();
 typedef NewClient = int Function();
 
-typedef ClientSendTextNative = Int32 Function(Uint32 goClient,
-    Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codePtr, IntPtr port);
+typedef ClientSendTextNative = Int32 Function(Uint32 goClientId,
+    Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codePtr, IntPtr callbackPortId);
 
-typedef ClientSendText = int Function(
-    Pointer<Void>, Pointer<Utf8>, Pointer<Pointer<Utf8>>, int);
+typedef ClientSendText = int Function(int goClientId, Pointer<Utf8> msg,
+    Pointer<Pointer<Utf8>> codePtr, int callbackPortId);
 
 typedef ClientSendFileNative = Int32 Function(
     Uint32 goClient,
@@ -103,7 +103,7 @@ class SendResult {
 
 class Client {
   // TODO: should be private but how to test?
-  late int goClient;
+  late int goClientId;
 
   late NativeClient _native;
 
@@ -135,7 +135,7 @@ class Client {
       });
 
     final statusCode = _native.clientSendText(
-        Pointer<Void>.fromAddress(goClient),
+        goClientId,
         msg.toNativeUtf8(),
         _codeOut,
         rxPort.sendPort.nativePort);
@@ -154,7 +154,7 @@ class Client {
   String recvText(String code) {
     Pointer<Pointer<Utf8>> _msgOut = calloc();
     final int errCode =
-        _native.clientRecvText(goClient, code.toNativeUtf8(), _msgOut);
+        _native.clientRecvText(goClientId, code.toNativeUtf8(), _msgOut);
     // TODO: error handling (errCode != 0)
 
     final Pointer<Utf8> _msg = _msgOut.value;
