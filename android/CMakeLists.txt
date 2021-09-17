@@ -38,3 +38,4 @@ string(REPLACE "armv7-" "armv7a-" CC_FOR_TARGET ${CC_FOR_TARGET})
 add_library(${PLUGIN_NAME} SHARED "src/main/c/dummy.c")
 
 include(../CMakeLists.txt)
+include(${CMAKE_SOURCE_DIR}/../lib/src/CMakeLists.txt)
