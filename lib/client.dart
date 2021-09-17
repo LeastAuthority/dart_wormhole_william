@@ -40,36 +40,34 @@ typedef ClientRecvText = int Function(
 class NativeClient {
   late final DynamicLibrary _wormholeWilliamLib;
   late final DynamicLibrary _asyncCallbackLib;
-  late final int _goClientId;
 
-  NativeClient() {
-    _wormholeWilliamLib =
-        DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
-    _asyncCallbackLib =
-        DynamicLibrary.open(libName("bindings", version: "1.0.0"));
+   NativeClient() {
+     _wormholeWilliamLib =
+         DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
+     _asyncCallbackLib =
+         DynamicLibrary.open(libName("bindings", version: "1.0.0"));
+   }
 
-    _goClientId = _newClient();
-  }
+   static String libName(String libraryName, {String? version}) {
+       final String baseName;
 
-  static String libName(String libraryName, {String? version}) {
-    final String baseName;
+       if (Platform.isMacOS) {
+         baseName = "lib$libraryName.dylib";
+       } else if (Platform.isWindows) {
+         baseName = "lib$libraryName.dll";
+       } else {
+         baseName = "lib$libraryName.so";
+       }
 
-    if (Platform.isMacOS) {
-      baseName = "lib$libraryName.dylib";
-    } else if (Platform.isWindows) {
-      baseName = "lib$libraryName.dll";
-    } else {
-      baseName = "lib$libraryName.so";
-    }
+       if (version != null) {
+         return "$baseName.$version";
+       } else {
+         return "$baseName";
+       }
+     }
 
-    if (version != null) {
-      return "$baseName.$version";
-    } else {
-      return "$baseName";
-    }
-  }
 
-  NewClient get _newClient {
+  NewClient get newClient {
     return _wormholeWilliamLib
         .lookup<NativeFunction<NewClientNative>>('NewClient')
         .asFunction();
@@ -109,45 +107,31 @@ class Client {
 
   Client() {
     _native = NativeClient();
+    goClientId = _native.newClient();
   }
 
   Future<SendResult> sendText(String msg) {
     final done = Completer<void>();
-    //final callbackPort = ReceivePort()
-    //..listen((dynamic msg) {
-    //done.complete(msg);
-    //});
+    // TODO: much much is it allocating?
+    Pointer<Pointer<Utf8>> codeOut = calloc();
 
-    Pointer<Pointer<Utf8>> _codeOut = calloc();
-    // final Future<SendResult> = _native.clientSendText(...)
-    // final int statusCode =
-    //     _native.clientSendText(goClient, msg.toNativeUtf8(), _codeOut, callbackPort.sendPort.nativePort);
-    // TODO: use facy functional combinators to make this suck less.
-    // call something in async_callback that takes _native.clientSendText, the args, the nativeSendPort.
-
-    // callbackPort.sendPort.nativePort
-    // also need to pass N args..
-
-    // _native.async(_native.clientSendText.address, watever.sendPort.NativePort);
     final rxPort = ReceivePort()
-      ..listen((msg) {
-        done.complete(msg);
-      });
+      ..listen((_) => done.complete());
 
     final statusCode = _native.clientSendText(
         goClientId,
         msg.toNativeUtf8(),
-        _codeOut,
+        codeOut,
         rxPort.sendPort.nativePort);
 
     if (statusCode != 0) {
       throw "Failed to send text. Error code: $statusCode";
     }
 
-    final Pointer<Utf8> _code = _codeOut.value;
-    calloc.free(_codeOut);
+    final Pointer<Utf8> code = codeOut.value;
+    calloc.free(codeOut);
 
-    final result = SendResult(_code.toDartString(), done.future);
+    final result = SendResult(code.toDartString(), done.future);
     return Future.value(result);
   }
 
