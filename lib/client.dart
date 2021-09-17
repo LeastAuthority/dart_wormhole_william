@@ -15,37 +15,39 @@ typedef NewClientNative = IntPtr Function();
 typedef NewClient = int Function();
 
 typedef ClientSendTextNative = Int32 Function(Uint32 goClientId,
-    Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codePtr, IntPtr callbackPortId);
+    Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codeOut, IntPtr callbackPortId);
 
 typedef ClientSendText = int Function(int goClientId, Pointer<Utf8> msg,
-    Pointer<Pointer<Utf8>> codePtr, int callbackPortId);
+    Pointer<Pointer<Utf8>> codeOut, int callbackPortId);
 
 typedef ClientSendFileNative = Int32 Function(
     Uint32 goClient,
     Pointer<Utf8> fileName,
     Uint32 length,
     Pointer<Int8> fileBytes,
-    Pointer<Pointer<Utf8>> codePtr,
-    IntPtr callback_port);
+    Pointer<Pointer<Utf8>> codeOut,
+    IntPtr callbackPortId);
 
 typedef ClientSendFile = int Function(int goClientId, Pointer<Utf8> fileName,
-    int, Pointer<Utf8>, Pointer<Pointer<Utf8>> codePtr, IntPtr callback_port);
+    int, Pointer<Utf8>, Pointer<Pointer<Utf8>> codePtr, IntPtr callbackPortId);
 
 typedef ClientRecvTextNative = Int32 Function(
-    Uint32 goClient, Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgPtr);
+    Uint32 goClient, Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgOut);
 
 typedef ClientRecvText = int Function(
-    int, Pointer<Utf8> goClientIndex, Pointer<Pointer<Utf8>> msg);
+    int, Pointer<Utf8> goClientIndex, Pointer<Pointer<Utf8>> msgOut);
 
 class NativeClient {
   late final DynamicLibrary _wormholeWilliamLib;
   late final DynamicLibrary _asyncCallbackLib;
+  late final goClientId;
 
    NativeClient() {
      _wormholeWilliamLib =
          DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
      _asyncCallbackLib =
          DynamicLibrary.open(libName("bindings", version: "1.0.0"));
+     goClientId = _newClient();
    }
 
    static String libName(String libraryName, {String? version}) {
@@ -67,19 +69,27 @@ class NativeClient {
      }
 
 
-  NewClient get newClient {
+  NewClient get _newClient {
     return _wormholeWilliamLib
         .lookup<NativeFunction<NewClientNative>>('NewClient')
         .asFunction();
   }
 
-  ClientSendText get clientSendText {
+  int clientSendText(Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codeOut, int callbackPortId) {
+     return _clientSendText(goClientId, msg, codeOut, callbackPortId);
+  }
+
+  ClientSendText get _clientSendText {
     return _asyncCallbackLib
         .lookup<NativeFunction<ClientSendTextNative>>('client_send_text')
         .asFunction();
   }
 
-  ClientRecvText get clientRecvText {
+  int clientRecvText(Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgOut) {
+    return _clientRecvText(goClientId, code, msgOut);
+  }
+
+  ClientRecvText get _clientRecvText {
     return _wormholeWilliamLib
         .lookup<NativeFunction<ClientRecvTextNative>>('ClientRecvText')
         .asFunction();
@@ -100,14 +110,10 @@ class SendResult {
 }
 
 class Client {
-  // TODO: should be private but how to test?
-  late int goClientId;
-
   late NativeClient _native;
 
   Client() {
     _native = NativeClient();
-    goClientId = _native.newClient();
   }
 
   Future<SendResult> sendText(String msg) {
@@ -119,7 +125,6 @@ class Client {
       ..listen((_) => done.complete());
 
     final statusCode = _native.clientSendText(
-        goClientId,
         msg.toNativeUtf8(),
         codeOut,
         rxPort.sendPort.nativePort);
@@ -136,16 +141,16 @@ class Client {
   }
 
   String recvText(String code) {
-    Pointer<Pointer<Utf8>> _msgOut = calloc();
+    Pointer<Pointer<Utf8>> msgOut = calloc();
     final int errCode =
-        _native.clientRecvText(goClientId, code.toNativeUtf8(), _msgOut);
+        _native.clientRecvText(code.toNativeUtf8(), msgOut);
     // TODO: error handling (errCode != 0)
 
-    final Pointer<Utf8> _msg = _msgOut.value;
-    calloc.free(_msgOut);
+    final Pointer<Utf8> msg = msgOut.value;
+    calloc.free(msgOut);
 
     // TODO: error handling
-    return _msg.toDartString();
+    return msg.toDartString();
   }
 
 // String sendFile(String fileName, int length, Uint8List fileBytes) {
