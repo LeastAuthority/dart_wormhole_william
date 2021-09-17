@@ -11,13 +11,10 @@ import 'package:path/path.dart' as path;
 import 'package:ffi/ffi.dart';
 // import 'dart:logging';
 
-typedef NewClientFunc = IntPtr Function();
+typedef NewClientNative = IntPtr Function();
 typedef NewClient = int Function();
 
-typedef NativeCallbackFunction = Void Function(
-    Pointer<Void> clientContext, Pointer<Void> result, Int32 exitCode);
-
-typedef ClientSendTextNative = Int32 Function(Pointer<Void> goClient,
+typedef ClientSendTextNative = Int32 Function(Uint32 goClient,
     Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codePtr, IntPtr port);
 
 typedef ClientSendText = int Function(
@@ -31,42 +28,30 @@ typedef ClientSendFileNative = Int32 Function(
     Pointer<Pointer<Utf8>> codePtr,
     IntPtr callback_port);
 
-typedef ClientSendFile = int Function(int, Pointer<Utf8>, int, Pointer<Int8>,
-    Pointer<Pointer<Utf8>>, IntPtr callback_port);
+typedef ClientSendFile = int Function(int goClientId, Pointer<Utf8> fileName,
+    int, Pointer<Utf8>, Pointer<Pointer<Utf8>> codePtr, IntPtr callback_port);
 
-typedef ClientRecvTextFunc = Int32 Function(
+typedef ClientRecvTextNative = Int32 Function(
     Uint32 goClient, Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgPtr);
 
 typedef ClientRecvText = int Function(
     int, Pointer<Utf8> goClientIndex, Pointer<Pointer<Utf8>> msg);
 
-class ClientNative {
-  late final DynamicLibrary? _wormholeWilliamLib;
-  late final DynamicLibrary? _asyncCallbackLib;
+class NativeClient {
+  late final DynamicLibrary _wormholeWilliamLib;
+  late final DynamicLibrary _asyncCallbackLib;
+  late final int _goClientId;
 
-  late final NewClient newClient;
+  NativeClient() {
+    _wormholeWilliamLib =
+        DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
+    _asyncCallbackLib =
+        DynamicLibrary.open(libName("bindings", version: "1.0.0"));
 
-  late final Pointer<NativeFunction<ClientSendTextNative>> clientSendText;
-
-  late final Int32 Function(Uint32, Pointer<Utf8>, Uint32, Pointer<Int8>,
-      Pointer<Pointer<Utf8>>, IntPtr) clientSendTextDart;
-
-  late final ClientRecvText clientRecvText;
-
-  late final ClientSendFile clientSendFile;
-
-  String get dylibPath {
-    var libraryName = "dart_wormhole_william_plugin";
-    if (Platform.isMacOS) {
-      return "lib$libraryName.dylib";
-    } else if (Platform.isWindows) {
-      return "lib$libraryName.dll";
-    } else {
-      return "lib$libraryName.so";
-    }
+    _goClientId = _newClient();
   }
 
-  String libName(String libraryName, {String? version}) {
+  static String libName(String libraryName, {String? version}) {
     final String baseName;
 
     if (Platform.isMacOS) {
@@ -77,35 +62,36 @@ class ClientNative {
       baseName = "lib$libraryName.so";
     }
 
-    if(version != null) {
+    if (version != null) {
       return "$baseName.$version";
     } else {
       return "$baseName";
     }
   }
 
-  ClientNative() {
-    _wormholeWilliamLib =
-        DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
-    _asyncCallbackLib =
-        DynamicLibrary.open(libName("bindings", version: "1.0.0"));
-
-    newClient = _wormholeWilliamLib!
-        .lookup<NativeFunction<NewClientFunc>>('NewClient')
+  NewClient get _newClient {
+    return _wormholeWilliamLib
+        .lookup<NativeFunction<NewClientNative>>('NewClient')
         .asFunction();
-
-    clientSendText = _asyncCallbackLib!
-        .lookup<NativeFunction<ClientSendTextNative>>('client_send_text');
-    // .asFunction();
-
-    clientRecvText = _wormholeWilliamLib!
-        .lookup<NativeFunction<ClientRecvTextFunc>>('ClientRecvText')
-        .asFunction();
-
-    // clientSendFile = _dylib!
-    //     .lookup<NativeFunction<ClientSendFileNative>>("ClientSendFile")
-    //     .asFunction();
   }
+
+  ClientSendText get clientSendText {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<ClientSendTextNative>>('client_send_text')
+        .asFunction();
+  }
+
+  ClientRecvText get clientRecvText {
+    return _wormholeWilliamLib
+        .lookup<NativeFunction<ClientRecvTextNative>>('ClientRecvText')
+        .asFunction();
+  }
+
+// ClientRecvText get clientRecvText {
+//   return _wormholeWilliamLib
+//       .lookup<NativeFunction<ClientSendFileNative>>("ClientSendFile")
+//       .asFunction();
+// }
 }
 
 class SendResult {
@@ -119,11 +105,10 @@ class Client {
   // TODO: should be private but how to test?
   late int goClient;
 
-  late ClientNative _native;
+  late NativeClient _native;
 
   Client() {
-    _native = ClientNative();
-    this.goClient = _native.newClient.call();
+    _native = NativeClient();
   }
 
   Future<SendResult> sendText(String msg) {
@@ -149,7 +134,7 @@ class Client {
         done.complete(msg);
       });
 
-    final statusCode = _native.clientSendText.asFunction<ClientSendText>()(
+    final statusCode = _native.clientSendText(
         Pointer<Void>.fromAddress(goClient),
         msg.toNativeUtf8(),
         _codeOut,
@@ -168,9 +153,9 @@ class Client {
 
   String recvText(String code) {
     Pointer<Pointer<Utf8>> _msgOut = calloc();
-    final int statusCode =
+    final int errCode =
         _native.clientRecvText(goClient, code.toNativeUtf8(), _msgOut);
-    // TODO: error handling (statusCode != 0)
+    // TODO: error handling (errCode != 0)
 
     final Pointer<Utf8> _msg = _msgOut.value;
     calloc.free(_msgOut);
@@ -179,33 +164,33 @@ class Client {
     return _msg.toDartString();
   }
 
-  // String sendFile(String fileName, int length, Uint8List fileBytes) {
-  //   Pointer<Pointer<Utf8>> codeC = calloc();
-  //   // TODO: use Uint8 instead (?)
-  //   final Pointer<Int8> bytes =
-  //       malloc(length); // Allocator<Int8>.allocate(length);
-  //   // Int8Array(length);
-  //
-  //   // TODO: figure out if we can avoid copying data.
-  //   // e.g. Uint8Array
-  //   for (int i = 0; i < fileBytes.length; i++) {
-  //     bytes[i] = fileBytes[i];
-  //   }
-  //
-  //   final void Function(Pointer<Void>, int) callback = (Pointer<Void> result, int errCode) {
-  //     final resultInt = result.cast<Int32>();
-  //     print("resultInt: ${resultInt.value}");
-  //   };
-  //   final Pointer<NativeFunction<CallbackNative>> callbackNative = Pointer.fromFunction<CallbackNative>(callback);
-  //
-  //   final int statusCode = _native.clientSendFile(
-  //       goClient, fileName.toNativeUtf8(), length, bytes, codeC, callbackNative);
-  //   // TODO: error handling (statusCode != 0)
-  //
-  //   final Pointer<Utf8> _msg = codeC.value;
-  //   calloc.free(codeC);
-  //
-  //   // TODO: error handling
-  //   return _msg.toDartString();
-  // }
+// String sendFile(String fileName, int length, Uint8List fileBytes) {
+//   Pointer<Pointer<Utf8>> codeC = calloc();
+//   // TODO: use Uint8 instead (?)
+//   final Pointer<Int8> bytes =
+//       malloc(length); // Allocator<Int8>.allocate(length);
+//   // Int8Array(length);
+//
+//   // TODO: figure out if we can avoid copying data.
+//   // e.g. Uint8Array
+//   for (int i = 0; i < fileBytes.length; i++) {
+//     bytes[i] = fileBytes[i];
+//   }
+//
+//   final void Function(Pointer<Void>, int) callback = (Pointer<Void> result, int errCode) {
+//     final resultInt = result.cast<Int32>();
+//     print("resultInt: ${resultInt.value}");
+//   };
+//   final Pointer<NativeFunction<CallbackNative>> callbackNative = Pointer.fromFunction<CallbackNative>(callback);
+//
+//   final int statusCode = _native.clientSendFile(
+//       goClient, fileName.toNativeUtf8(), length, bytes, codeC, callbackNative);
+//   // TODO: error handling (statusCode != 0)
+//
+//   final Pointer<Utf8> _msg = codeC.value;
+//   calloc.free(codeC);
+//
+//   // TODO: error handling
+//   return _msg.toDartString();
+// }
 }
