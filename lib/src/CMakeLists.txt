@@ -8,8 +8,7 @@ if(NOT DEFINED ENV{FLUTTER_HOME})
 endif()
 
 add_library(
-  bindings SHARED
-  ${CMAKE_SOURCE_DIR}/../lib/src/async_callback.c
+  bindings SHARED ${CMAKE_SOURCE_DIR}/../dart_wormhole_william/lib/src/async_callback.c
   $ENV{FLUTTER_HOME}/bin/cache/dart-sdk/include/dart_api_dl.c)
 target_include_directories(bindings
   PUBLIC $ENV{FLUTTER_HOME}/bin/cache/dart-sdk/include)
