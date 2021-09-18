@@ -47,7 +47,7 @@ int client_send_text(uintptr_t clientPtr, char *msg, char **_codeOut,
 
   *_codeOut = "hello";
 
-  // async(&ctx, NULL, 0);
+  async(&ctx, NULL, 0);
 
   return 0;
 
