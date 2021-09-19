@@ -43,6 +43,8 @@ void async(void *ctx, void *value, int32_t err_code) {
   if (!dart_message_sent) {
     printf("Sending callback result to dart isolate failed");
   }
+
+  free(ctx);
 }
 
 int client_send_text(uintptr_t clientPtr, char *msg, char **_codeOut,
