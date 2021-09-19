@@ -19,6 +19,7 @@ typedef struct {
 } context;
 
 void async(void *ctx, void *value, int32_t err_code) {
+    printf("in async\n");
   // Construct Dart object from C API.
   //  (see:
   //  https://github.com/dart-lang/sdk/blob/master/runtime/include/dart_native_api.h#L19)
@@ -30,15 +31,19 @@ void async(void *ctx, void *value, int32_t err_code) {
     // TODO: maybe construct dart error object
   }
 
+    printf("gegttging cb port\n");
   intptr_t callback_port = ((context *)(ctx))->callback_port;
 
+    printf("malloc\n");
   Dart_CObject* obj = malloc(sizeof(Dart_CObject));
-  obj->type = Dart_CObject_kString;
-  obj->value.as_string = "done from C";
+  obj->type = Dart_CObject_kInt32;
+  obj->value.as_int32 = 107;
+    printf("sending\n");
   // *obj = {.type = Dart_CObject_kString, .value.as_string = "I'm done yo"};
 
   // Send dart object response.
   bool result = Dart_PostCObject_DL(callback_port, obj);
+    printf("sent: %d\n", result);
 }
 
 int client_send_text(uintptr_t clientPtr, char *msg, char **_codeOut,
@@ -47,6 +52,7 @@ int client_send_text(uintptr_t clientPtr, char *msg, char **_codeOut,
 
   *_codeOut = "hello";
 
+  printf("hello from C\n");
   async(&ctx, NULL, 0);
 
   return 0;

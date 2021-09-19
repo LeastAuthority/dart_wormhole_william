@@ -11,6 +11,9 @@ import 'package:path/path.dart' as path;
 import 'package:ffi/ffi.dart';
 // import 'dart:logging';
 
+typedef InitDartApiNative = IntPtr Function(Pointer<Void>);
+typedef InitDartApi = int Function(Pointer<Void>);
+
 typedef NewClientNative = IntPtr Function();
 typedef NewClient = int Function();
 
@@ -47,6 +50,7 @@ class NativeClient {
          DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
      _asyncCallbackLib =
          DynamicLibrary.open(libName("bindings", version: "1.0.0"));
+     _initDartApi(NativeApi.initializeApiDLData);
      goClientId = _newClient();
    }
 
@@ -68,6 +72,11 @@ class NativeClient {
        }
      }
 
+  InitDartApi get _initDartApi {
+    final nativeFnPointer =
+    _asyncCallbackLib.lookup<NativeFunction<InitDartApiNative>>('init_dart_api_dl');
+    return nativeFnPointer.asFunction<InitDartApi>();
+  }
 
   NewClient get _newClient {
     return _wormholeWilliamLib
@@ -122,7 +131,10 @@ class Client {
     Pointer<Pointer<Utf8>> codeOut = calloc();
 
     final rxPort = ReceivePort()
-      ..listen((_) => done.complete());
+      ..listen((dynamic msg) {
+        print(msg);
+        done.complete();
+      });
 
     final statusCode = _native.clientSendText(
         msg.toNativeUtf8(),
