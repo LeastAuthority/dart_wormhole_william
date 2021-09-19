@@ -8,12 +8,14 @@ if(NOT DEFINED ENV{FLUTTER_HOME})
 endif()
 
 add_library(
-  bindings SHARED ${CMAKE_SOURCE_DIR}/../dart_wormhole_william/lib/src/async_callback.c
+  bindings SHARED ${DART_WORMHOLE_WILLIAM_C_DIR}/async_callback.c
   $ENV{FLUTTER_HOME}/bin/cache/dart-sdk/include/dart_api_dl.c)
 target_include_directories(bindings
   PUBLIC $ENV{FLUTTER_HOME}/bin/cache/dart-sdk/include)
-target_include_directories(bindings PRIVATE flutter_INCLUDE_DIRECTORIES)
-target_include_directories(bindings PRIVATE dart_INCLUDE_DIRECTORIES)
+target_include_directories(bindings PRIVATE ${flutter_INCLUDE_DIRECTORIES})
+
+target_include_directories(bindings PRIVATE ${WORMHOLE_WILLIAM_HEADER_DIR})
+# target_include_directories(bindings PRIVATE ${dart_INCLUDE_DIRECTORIES})
 target_link_libraries(bindings PUBLIC flutter)
 # target_link_libraries(bindings INTERFACE dart) add_executable(bindings_test
 # bindings.c include/dart_api_dl.c)
@@ -31,6 +33,8 @@ set_target_properties(
              PUBLIC_HEADER include/dart_api.h
              PUBLIC_HEADER include/dart_api_dl.h
              PUBLIC_HEADER include/dart_naitive_dl.h
+             PRIVATE_HEADER libwormhole_william.h
+             PRIVATE_HEADER client.h
              VERSION 1.0.0
              SOVERSION 1
              OUTPUT_NAME "bindings")
