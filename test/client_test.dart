@@ -1,7 +1,7 @@
 import 'dart:io' show Directory;
 import 'dart:ffi';
 
-import 'package:dart_wormhole_william/client.dart';
+import 'package:dart_wormhole_william/client/client.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;

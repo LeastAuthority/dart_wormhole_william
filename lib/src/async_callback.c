@@ -2,43 +2,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "libwormhole_william.h"
 #include <dart_api.h>
 #include <dart_api_dl.h>
 
-intptr_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
+#include "libwormhole_william.h"
 
-typedef struct {
-  intptr_t callback_port;
+typedef struct context {
+    int32_t callback_port_id;
 } context;
 
-void async(void *ctx, void *value, int32_t err_code) {
+intptr_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
+
+void async_callback(void *ctx, void *value, int32_t err_code) {
   bool dart_message_sent = false;
-  intptr_t callback_port = ((context *)(ctx))->callback_port;
+  intptr_t callback_port_id = ((context *)(ctx))->callback_port_id;
 
   printf("I'm in async\n");
   printf("Error code is: %d\n", err_code);
 
-  Dart_CObject response;
-
-  if (err_code != 0) {
-    // TODO currently we return NULL for value always, this should probably be
-    // changed in case of error Also we need to check if we'll return an
-    // error-containing message or throw a dart error Construct Dart object from
-    // C API.
-    //  (see:
-    //  https://github.com/dart-lang/sdk/blob/master/runtime/include/dart_native_api.h#L19)
-    // dart_object.type = Dart_CObject_kInt32;
-    // dart_object.value.as_int32 = value;
-    response =
-        (Dart_CObject){.type = Dart_CObject_kString, .value.as_string = value};
-
-    dart_message_sent = Dart_PostCObject_DL(callback_port, &response);
-  } else {
-    response =
-        (Dart_CObject){.type = Dart_CObject_kInt32, .value.as_int32 = err_code};
-    dart_message_sent = Dart_PostCObject_DL(callback_port, &response);
-  }
+  Dart_CObject response = {
+    .type = Dart_CObject_kInt32,
+    .value.as_int32 = err_code
+  };
+  dart_message_sent = Dart_PostCObject_DL(callback_port_id, &response);
 
   if (!dart_message_sent) {
     printf("Sending callback result to dart isolate failed");
@@ -47,10 +33,18 @@ void async(void *ctx, void *value, int32_t err_code) {
   free(ctx);
 }
 
-int client_send_text(uintptr_t clientPtr, char *msg, char **_codeOut,
-                     intptr_t callback_port) {
-  context *ctx = (context *)(malloc(sizeof(context)));
-  *ctx = (context){.callback_port = callback_port};
-  ClientSendText(ctx, clientPtr, msg, _codeOut, async);
-  return 0;
+int async_ClientSendText(uintptr_t client_id, char *msg, char **code_out, int32_t callback_port_id) {
+  context ctx = {.callback_port_id = callback_port_id};
+  return ClientSendText(&ctx, client_id, msg, code_out, async_callback);
+}
+
+// TODO: factor `file_name`, `lenght`, and `file_bytes` out to a struct.
+int async_ClientSendFile(uintptr_t client_id, char *file_name, int32_t length, void *file_bytes, char **code_out, int32_t callback_port_id) {
+  context ctx = {.callback_port_id = callback_port_id};
+  return ClientSendFile(&ctx, client_id, file_name, length, file_bytes, code_out, async_callback);
+}
+
+int async_ClientRecvText(uintptr_t client_id, char *code, int32_t callback_port_id) {
+  context ctx = {.callback_port_id = callback_port_id};
+  return ClientRecvText(&ctx, client_id, code, async_callback);
 }

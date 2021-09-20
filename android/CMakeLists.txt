@@ -24,6 +24,7 @@ else()
 endif()
 
 set(WORMHOLE_WILLIAM_GO_DIR ${CMAKE_SOURCE_DIR}/../wormhole-william)
+set(DART_WORMHOLE_WILLIAM_C_DIR ${CMAKE_SOURCE_DIR}/../lib/src)
 
 set(CC_FOR_TARGET ${ANDROID_TOOLCHAIN_ROOT}/bin/${CMAKE_C_COMPILER_TARGET}-clang)
 
