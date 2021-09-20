@@ -27,11 +27,11 @@ class Client {
 
     final rxPort = ReceivePort()
       ..listen((dynamic errCode) {
-        // TODO: use error codes enum.
-        if (errCode != 0) {
-          // TODO: Create exceptions subclass(es) with err code member.
-          throw Exception('Failed while sending text. Error code: $errCode');
-        }
+        // // TODO: use error codes enum.
+        // if (errCode != 0) {
+        //   // TODO: Create exceptions subclass(es) with err code member.
+        //   throw Exception('Failed while sending text. Error code: $errCode');
+        // }
         done.complete();
       });
 

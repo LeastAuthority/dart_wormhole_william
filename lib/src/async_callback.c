@@ -30,7 +30,8 @@ void async_callback(void *ctx, void *value, int32_t err_code) {
     printf("Sending callback result to dart isolate failed");
   }
 
-  free(ctx);
+// TODO: why does this cause a double free error?
+  //free(ctx);
 }
 
 int async_ClientSendText(uintptr_t client_id, char *msg, char **code_out, int32_t callback_port_id) {
