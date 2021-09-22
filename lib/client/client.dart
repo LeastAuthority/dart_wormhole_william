@@ -39,7 +39,7 @@ class Client {
         msg.toNativeUtf8(), codeOut, rxPort.sendPort.nativePort);
 
     if (errCode != 0) {
-      // TODO: Create exception subclass(es) with err code member.
+      // TODO: Create exception implementation(s).
       throw Exception('Failed to send text. Error code: $errCode');
     }
 

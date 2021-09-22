@@ -42,7 +42,7 @@ typedef ClientRecvText = int Function(int goClientId, Pointer<Utf8> code,
 class NativeClient {
   late final DynamicLibrary _wormholeWilliamLib;
   late final DynamicLibrary _asyncCallbackLib;
-  late final goClientId;
+  late final _goClientId;
 
   NativeClient() {
     _wormholeWilliamLib =
@@ -50,7 +50,7 @@ class NativeClient {
     _asyncCallbackLib =
         DynamicLibrary.open(libName("bindings", version: "1.0.0"));
     _initDartApi(NativeApi.initializeApiDLData);
-    goClientId = _newClient();
+    _goClientId = _newClient();
   }
 
   NewClient get _newClient {
@@ -61,7 +61,7 @@ class NativeClient {
 
   int clientSendText(
       Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codeOut, int callbackPortId) {
-    return _clientSendText(goClientId, msg, codeOut, callbackPortId);
+    return _clientSendText(_goClientId, msg, codeOut, callbackPortId);
   }
 
   int clientSendFile(
@@ -71,12 +71,12 @@ class NativeClient {
       Pointer<Pointer<Utf8>> codeOut,
       int callbackPortId) {
     return _clientSendFile(
-        goClientId, fileName, length, fileBytes, codeOut, callbackPortId);
+        _goClientId, fileName, length, fileBytes, codeOut, callbackPortId);
   }
 
   int clientRecvText(
       Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgOut, int callbackPortId) {
-    return _clientRecvText(goClientId, code, msgOut, callbackPortId);
+    return _clientRecvText(_goClientId, code, msgOut, callbackPortId);
   }
 
   // -- getters for wrapping native functions in dart --//
