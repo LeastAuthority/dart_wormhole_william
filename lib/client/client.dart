@@ -81,7 +81,7 @@ class Client {
   Future<String> sendFile(String fileName, int length, Uint8List fileBytes) {
     final done = Completer<void>();
 
-    Pointer<Pointer<Utf8>> codeC = calloc();
+    Pointer<Pointer<Utf8>> codeOut = calloc();
     // TODO: use Uint8 instead (?)
     final Pointer<Uint8> bytes =
         malloc(length); // Allocator<Uint8>.allocate(length);
@@ -103,14 +103,14 @@ class Client {
       });
 
     final int errCode = _native.clientSendFile(fileName.toNativeUtf8(),
-        length, bytes, codeC, rxPort.sendPort.nativePort);
+        length, bytes, codeOut, rxPort.sendPort.nativePort);
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
       throw Exception('Failed to send text. Error code: $errCode');
     }
 
-    final Pointer<Utf8> code = codeC.value;
-    calloc.free(codeC);
+    final Pointer<Utf8> code = codeOut.value;
+    calloc.free(codeOut);
 
     // TODO: error handling
     return Future.value(code.toDartString());

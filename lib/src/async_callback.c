@@ -7,7 +7,7 @@
 
 #include "libwormhole_william.h"
 
-typedef struct context {
+typedef struct {
     int32_t callback_port_id;
 } context;
 
