@@ -17,13 +17,21 @@ void async_callback(void *ctx, void *value, int32_t err_code) {
   bool dart_message_sent = false;
   intptr_t callback_port_id = ((context *)(ctx))->callback_port_id;
 
-  printf("I'm in async\n");
-  printf("Error code is: %d\n", err_code);
+  file_t *file = (file_t*)(value);
 
   Dart_CObject response = {
-    .type = Dart_CObject_kInt32,
-    .value.as_int32 = err_code
+    .type = Dart_CObject_kTypedData,
+    .value = {
+      .as_typed_data = {
+        .type = Dart_TypedData_kUint8,
+        .length = file->length,
+        .values = file->data,
+      }
+    }
   };
+  if (err_code != 0) {
+    response.value.as_int32 = err_code;
+  }
   dart_message_sent = Dart_PostCObject_DL(callback_port_id, &response);
 
   if (!dart_message_sent) {

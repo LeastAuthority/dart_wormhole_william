@@ -4,8 +4,10 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:dart_wormhole_william/client/exceptions.dart';
+import 'package:dart_wormhole_william/client/file_struct.dart';
 import 'package:ffi/ffi.dart';
 
+import 'file_struct.dart';
 import 'native_client.dart';
 
 class SendResult {
@@ -31,7 +33,9 @@ class Client {
       ..listen((dynamic errCode) {
         if (errCode != 0) {
         // TODO: Create exception implementation(s).
-          throw Exception('Failed while sending text. Error code: $errCode');
+          final exception = Exception('Failed to send text. Error code: $errCode');
+          done.completeError(exception);
+          throw exception;
         }
         done.complete();
       });
@@ -41,7 +45,10 @@ class Client {
 
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
-      throw Exception('Failed to send text. Error code: $errCode');
+      calloc.free(codeOut);
+      final exception = Exception('Failed to send text. Error code: $errCode');
+      done.completeError(exception);
+      throw exception;
     }
 
     final Pointer<Utf8> code = codeOut.value;
@@ -52,17 +59,23 @@ class Client {
   }
 
   Future<String> recvText(String code) {
-    final done = Completer<void>();
+    final done = Completer<String>();
     // TODO: much much is it allocating?
     Pointer<Pointer<Utf8>> msgOut = calloc();
 
     final rxPort = ReceivePort()
-      ..listen((dynamic errCode) {
-        if (errCode != 0) {
+      ..listen((dynamic response) {
+        if (response is int) {
           // TODO: Create exception implementation(s).
-          throw Exception('Failed while sending text. Error code: $errCode');
+          final exception = Exception('Failed while sending text. Error code: $response');
+          done.completeError(exception);
+          throw exception;
         }
-        done.complete();
+        
+        // Pointer<FileStruct> file = Pointer.fromAddress(response);
+        // final data = file.ref.data.asTypedList(file.ref.size);
+
+        done.complete(String.fromCharCodes(response));
       });
 
     final int errCode = _native.clientRecvText(
@@ -72,10 +85,7 @@ class Client {
       throw Exception('Failed to send text. Error code: $errCode');
     }
 
-    final Pointer<Utf8> msg = msgOut.value;
-    calloc.free(msgOut);
-
-    return Future.value(msg.toDartString());
+    return done.future;
   }
 
   Future<String> sendFile(String fileName, int length, Uint8List fileBytes) {
