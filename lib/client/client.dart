@@ -31,7 +31,7 @@ class Client {
 
     final rxPort = ReceivePort()
       ..listen((dynamic errCode) {
-        if (errCode != 0) {
+        if (errCode is int) {
         // TODO: Create exception implementation(s).
           final exception = Exception('Failed to send text. Error code: $errCode');
           done.completeError(exception);
@@ -59,12 +59,12 @@ class Client {
   }
 
   Future<String> recvText(String code) {
+    print('Dart | client.dart:62 recvTetxt code: $code');
     final done = Completer<String>();
-    // TODO: much much is it allocating?
-    Pointer<Pointer<Utf8>> msgOut = calloc();
 
     final rxPort = ReceivePort()
       ..listen((dynamic response) {
+        print('Dart | client.dart:67 rxPort listener response: $response');
         if (response is int) {
           // TODO: Create exception implementation(s).
           final exception = Exception('Failed while sending text. Error code: $response');
@@ -78,12 +78,14 @@ class Client {
         done.complete(String.fromCharCodes(response));
       });
 
+    print('Dart | client.dart:81 _native.clientRecvText');
     final int errCode = _native.clientRecvText(
-        code.toNativeUtf8(), msgOut, rxPort.sendPort.nativePort);
+        code.toNativeUtf8(), rxPort.sendPort.nativePort);
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
       throw Exception('Failed to send text. Error code: $errCode');
     }
+    print('Dart | client.dart:88 _native.clientRecvText errCode: $errCode');
 
     return done.future;
   }

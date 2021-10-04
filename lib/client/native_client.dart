@@ -34,10 +34,10 @@ typedef ClientSendFile = int Function(
     int callbackPortId);
 
 typedef ClientRecvTextNative = Int32 Function(Uint32 goClientId,
-    Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgOut, Int32 callbackPortId);
+    Pointer<Utf8> code, Int32 callbackPortId);
 
 typedef ClientRecvText = int Function(int goClientId, Pointer<Utf8> code,
-    Pointer<Pointer<Utf8>> msgOut, int callbackPortId);
+    int callbackPortId);
 
 class NativeClient {
   late final DynamicLibrary _wormholeWilliamLib;
@@ -75,8 +75,8 @@ class NativeClient {
   }
 
   int clientRecvText(
-      Pointer<Utf8> code, Pointer<Pointer<Utf8>> msgOut, int callbackPortId) {
-    return _clientRecvText(_goClientId, code, msgOut, callbackPortId);
+      Pointer<Utf8> code, int callbackPortId) {
+    return _clientRecvText(_goClientId, code, callbackPortId);
   }
 
   // -- getters for wrapping native functions in dart --//
