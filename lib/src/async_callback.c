@@ -1,3 +1,6 @@
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,15 +21,24 @@ const char* RECV_TEXT = "context/recv_text";
 const char* SEND_FILE = "context/send_file";
 const char* RECV_FILE = "context/recv_file";
 
-intptr_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
+intptr_t init_dart_api_dl(void *data) {
+ client_RegisterInit(&init_dart_api_dl, data);
+ return Dart_InitializeApiDL(data);
+}
 
-void async_callback(void *ctx, void *value, int32_t err_code) {
+int32_t async_callback(void *ctx, void *value, int32_t err_code) {
+  printf("C | async_callback:24\n");
+  fflush(stdout);
+  printf("thread id: %d\n", syscall(__NR_gettid));
+  fflush(stdout);
   bool dart_message_sent = false;
-  intptr_t callback_port_id = ((context *)(ctx))->callback_port_id;
+  context* _ctx = (context*)(ctx);
+  intptr_t callback_port_id = _ctx->callback_port_id;
 
   Dart_CObject response;
 
-  context* _ctx = (context*)(ctx);
+  printf("C | async_callback:32 _ctx->callport_port_id: %d\n", _ctx->callback_port_id);
+  fflush(stdout);
 
   if (err_code != 0) {
     response.type = Dart_CObject_kInt32;
@@ -55,10 +67,11 @@ void async_callback(void *ctx, void *value, int32_t err_code) {
   dart_message_sent = Dart_PostCObject_DL(callback_port_id, &response);
 
   if (!dart_message_sent) {
-    printf("Sending callback result to dart isolate failed");
+    printf("Sending callback result to dart isolate failed\n");
   }
 
   free(ctx);
+  return dart_message_sent;
 }
 
 int async_ClientSendText(uintptr_t client_id, char *msg, char **code_out, int32_t callback_port_id) {
@@ -81,6 +94,7 @@ int async_ClientSendFile(uintptr_t client_id, char *file_name, int32_t length, v
 }
 
 int async_ClientRecvText(uintptr_t client_id, char *code, int32_t callback_port_id) {
+  printf("thread id: %d\n", syscall(__NR_gettid));
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
     .callback_port_id = callback_port_id,
