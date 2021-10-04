@@ -12,7 +12,7 @@
 #include "libwormhole_william.h"
 
 typedef struct {
-    int32_t callback_port_id;
+    intptr_t callback_port_id;
     const char* entrypoint;
 } context;
 
@@ -74,7 +74,7 @@ int32_t async_callback(void *ctx, void *value, int32_t err_code) {
   return dart_message_sent;
 }
 
-int async_ClientSendText(uintptr_t client_id, char *msg, char **code_out, int32_t callback_port_id) {
+int async_ClientSendText(uintptr_t client_id, char *msg, char **code_out, intptr_t callback_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
     .callback_port_id = callback_port_id,
@@ -84,7 +84,7 @@ int async_ClientSendText(uintptr_t client_id, char *msg, char **code_out, int32_
 }
 
 // TODO: factor `file_name`, `lenght`, and `file_bytes` out to a struct.
-int async_ClientSendFile(uintptr_t client_id, char *file_name, int32_t length, void *file_bytes, char **code_out, int32_t callback_port_id) {
+int async_ClientSendFile(uintptr_t client_id, char *file_name, int32_t length, void *file_bytes, char **code_out, intptr_t callback_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
     .callback_port_id = callback_port_id,
@@ -93,7 +93,7 @@ int async_ClientSendFile(uintptr_t client_id, char *file_name, int32_t length, v
   return ClientSendFile(ctx, client_id, file_name, length, file_bytes, code_out, async_callback);
 }
 
-int async_ClientRecvText(uintptr_t client_id, char *code, int32_t callback_port_id) {
+int async_ClientRecvText(uintptr_t client_id, char *code, intptr_t callback_port_id) {
   printf("thread id: %d\n", syscall(__NR_gettid));
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
