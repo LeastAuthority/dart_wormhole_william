@@ -71,9 +71,6 @@ class Client {
           done.completeError(exception);
           throw exception;
         }
-        
-        // Pointer<FileStruct> file = Pointer.fromAddress(response);
-        // final data = file.ref.data.asTypedList(file.ref.size);
 
         done.complete(String.fromCharCodes(response));
       });
@@ -94,7 +91,6 @@ class Client {
     final done = Completer<void>();
 
     Pointer<Pointer<Utf8>> codeOut = calloc();
-    // TODO: use Uint8 instead (?)
     final Pointer<Uint8> bytes =
         malloc(length); // Allocator<Uint8>.allocate(length);
     // Uint8Array(length);
