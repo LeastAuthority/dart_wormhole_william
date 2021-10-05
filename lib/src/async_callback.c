@@ -7,6 +7,17 @@
 #include <dart_api_dl.h>
 
 #include "libwormhole_william.h"
+// TODO define this in the build
+#define DEBUG
+
+#ifdef DEBUG
+#define debugmsg(msg) printf("C | %s:%d: " msg "\n", __FILE_NAME__, __LINE__)
+#define debugf(format, ...) printf("C | %s:%d: " format "\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
+#else
+#define debugmsg(msg)
+#define debugf(format, ...)
+#endif
+
 
 typedef struct {
     intptr_t callback_port_id;
@@ -21,7 +32,7 @@ const char* RECV_FILE = "context/recv_file";
 intptr_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
 
 void async_callback(void *ctx, void *value, int32_t err_code) {
-    printf("C | async_callback:24 value: %p\n", value);
+  debugf("value: %p", value);
   bool dart_message_sent = false;
   context* _ctx = (context*)(ctx);
   intptr_t callback_port_id = _ctx->callback_port_id;
@@ -30,20 +41,20 @@ void async_callback(void *ctx, void *value, int32_t err_code) {
 
 
 // TODO: use codes enum (?)
-    printf("C | async_callback:39 ctx->entrypoint: %s\n", _ctx->entrypoint);
+  debugf("ctx->entrypoint: %s", _ctx->entrypoint);
   if (err_code != 0) {
-    printf("C | async_callback:34 err_code: %d\n", err_code);
+    debugf("err_code: %d", err_code);
     response.type = Dart_CObject_kInt32;
     response.value.as_int32 = err_code;
   } else if (strcmp(_ctx->entrypoint, SEND_TEXT) == 0) {
-    printf("C | async_callback:39 SEND_TEXT\n");
+    debugmsg("SEND_TEXT");
 //    if (true) {
         response = (Dart_CObject){
           .type = Dart_CObject_kNull,
         };
 //    } else {
     } else if (strcmp(_ctx->entrypoint, RECV_TEXT) == 0) {
-        printf("C | async_callback:39 RECV_TEXT\n");
+      debugmsg("RECV_TEXT");
         file_t *file = (file_t*)(value);
 
         response = (Dart_CObject){
@@ -61,7 +72,7 @@ void async_callback(void *ctx, void *value, int32_t err_code) {
   dart_message_sent = Dart_PostCObject_DL(callback_port_id, &response);
 
   if (!dart_message_sent) {
-    printf("Sending callback result to dart isolate failed");
+    debugmsg("Sending callback result to dart isolate failed");
   }
 
   free(ctx);
