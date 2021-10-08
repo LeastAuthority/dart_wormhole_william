@@ -31,6 +31,10 @@ const char* RECV_FILE = "context/recv_file";
 
 intptr_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
 
+bool entrypoint_is(context *ctx, const char *other) {
+  return strcmp(ctx->entrypoint, other) == 0;
+}
+
 void async_callback(void *ctx, void *value, int32_t err_code) {
   debugf("value: %p", value);
   bool dart_message_sent = false;
@@ -39,35 +43,51 @@ void async_callback(void *ctx, void *value, int32_t err_code) {
 
   Dart_CObject response;
 
-
-// TODO: use codes enum (?)
+  // TODO: use codes enum (?)
   debugf("ctx->entrypoint: %s", _ctx->entrypoint);
   if (err_code != 0) {
     debugf("err_code: %d", err_code);
     response.type = Dart_CObject_kInt32;
     response.value.as_int32 = err_code;
-  } else if (strcmp(_ctx->entrypoint, SEND_TEXT) == 0) {
+  } else if (entrypoint_is(_ctx, SEND_FILE)) {
+    debugmsg("SEND_FILE");
+      response = (Dart_CObject){
+        .type = Dart_CObject_kNull,
+      };
+  } else if (entrypoint_is(_ctx, SEND_TEXT)) {
     debugmsg("SEND_TEXT");
-//    if (true) {
-        response = (Dart_CObject){
-          .type = Dart_CObject_kNull,
-        };
-//    } else {
-    } else if (strcmp(_ctx->entrypoint, RECV_TEXT) == 0) {
-      debugmsg("RECV_TEXT");
-        file_t *file = (file_t*)(value);
+      response = (Dart_CObject){
+        .type = Dart_CObject_kNull,
+      };
+  } else if (entrypoint_is(_ctx, RECV_FILE)) {
+    debugmsg("RECV_FILE");
+      file_t *file = (file_t*)(value);
 
-        response = (Dart_CObject){
-          .type = Dart_CObject_kTypedData,
-          .value = {
-            .as_typed_data = {
-              .type = Dart_TypedData_kUint8,
-              .length = file->length,
-              .values = file->data,
-            }
+      response = (Dart_CObject){
+        .type = Dart_CObject_kTypedData,
+        .value = {
+          .as_typed_data = {
+            .type = Dart_TypedData_kUint8,
+            .length = file->length,
+            .values = file->data,
           }
-        };
-    }
+        }
+      };
+  } else if (entrypoint_is(_ctx, RECV_TEXT)) {
+    debugmsg("RECV_TEXT");
+      file_t *file = (file_t*)(value);
+
+      response = (Dart_CObject){
+        .type = Dart_CObject_kTypedData,
+        .value = {
+          .as_typed_data = {
+            .type = Dart_TypedData_kUint8,
+            .length = file->length,
+            .values = file->data,
+          }
+        }
+      };
+  }
 
   dart_message_sent = Dart_PostCObject_DL(callback_port_id, &response);
 

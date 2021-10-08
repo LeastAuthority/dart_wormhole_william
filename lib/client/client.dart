@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:ffi/ffi.dart';
+import 'package:path/path.dart' as path;
+
 import 'package:dart_wormhole_william/client/exceptions.dart';
 import 'package:dart_wormhole_william/client/file_struct.dart';
-import 'package:ffi/ffi.dart';
 
 import 'file_struct.dart';
 import 'native_client.dart';
@@ -59,12 +62,10 @@ class Client {
   }
 
   Future<String> recvText(String code) {
-    print('Dart | client.dart:62 recvTetxt code: $code');
     final done = Completer<String>();
 
     final rxPort = ReceivePort()
       ..listen((dynamic response) {
-        print('Dart | client.dart:67 rxPort listener response: $response');
         if (response is int) {
           // TODO: Create exception implementation(s).
           final exception = Exception('Failed while sending text. Error code: $response');
@@ -75,43 +76,44 @@ class Client {
         done.complete(String.fromCharCodes(response));
       });
 
-    print('Dart | client.dart:81 _native.clientRecvText');
     final int errCode = _native.clientRecvText(
         code.toNativeUtf8(), rxPort.sendPort.nativePort);
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
       throw Exception('Failed to send text. Error code: $errCode');
     }
-    print('Dart | client.dart:88 _native.clientRecvText errCode: $errCode');
 
     return done.future;
   }
 
-  Future<String> sendFile(String fileName, int length, Uint8List fileBytes) {
+  Future<SendResult> sendFile(File file) async {
+    final fileName = path.basename(file.path);
+    final length = await file.length();
     final done = Completer<void>();
 
     Pointer<Pointer<Utf8>> codeOut = calloc();
-    final Pointer<Uint8> bytes =
+    // TODO: figure out if we can avoid copying data.
+    // e.g. ByteData | ByteBuffer | Uint8Array (?)
+    final Pointer<Uint8> nativeBytes =
         malloc(length); // Allocator<Uint8>.allocate(length);
     // Uint8Array(length);
 
-    // TODO: figure out if we can avoid copying data.
-    // e.g. Uint8Array
-    for (int i = 0; i < fileBytes.length; i++) {
-      bytes[i] = fileBytes[i];
-    }
-
     final rxPort = ReceivePort()
       ..listen((dynamic errCode) {
-        if (errCode != 0) {
+        if (errCode is int) {
           // TODO: Create exception implementation(s).
           throw Exception('Failed while sending text. Error code: $errCode');
         }
         done.complete();
       });
 
+    final fileBytes = file.readAsBytesSync();
+    for (int i = 0; i < fileBytes.length; i++) {
+      nativeBytes[i] = fileBytes[i];
+    }
+
     final int errCode = _native.clientSendFile(fileName.toNativeUtf8(),
-        length, bytes, codeOut, rxPort.sendPort.nativePort);
+        length, nativeBytes, codeOut, rxPort.sendPort.nativePort);
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
       throw Exception('Failed to send text. Error code: $errCode');
@@ -120,7 +122,6 @@ class Client {
     final Pointer<Utf8> code = codeOut.value;
     calloc.free(codeOut);
 
-    // TODO: error handling
-    return Future.value(code.toDartString());
+    return SendResult(code.toDartString(), done.future);
   }
 }
