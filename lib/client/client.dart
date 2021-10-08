@@ -124,4 +124,30 @@ class Client {
 
     return SendResult(code.toDartString(), done.future);
   }
+
+  Future<Uint8List> recvFile(String code) {
+    final done = Completer<Uint8List>();
+
+    final rxPort = ReceivePort()
+      ..listen((dynamic response) {
+        if (response is int) {
+          // TODO: Create exception implementation(s).
+          final exception = Exception('Failed while sending text. Error code: $response');
+          done.completeError(exception);
+          throw exception;
+        }
+
+        // done.complete(String.fromCharCodes(response));
+        done.complete(response);
+      });
+
+    final int errCode = _native.clientRecvFile(
+        code.toNativeUtf8(), rxPort.sendPort.nativePort);
+    if (errCode != 0) {
+      // TODO: Create exception implementation(s).
+      throw Exception('Failed to send text. Error code: $errCode');
+    }
+
+    return done.future;
+  }
 }

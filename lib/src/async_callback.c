@@ -125,3 +125,12 @@ int async_ClientRecvText(uintptr_t client_id, char *code, intptr_t callback_port
   };
   return ClientRecvText((void*)(ctx), client_id, code, async_callback);
 }
+
+int async_ClientRecvFile(uintptr_t client_id, char *code, intptr_t callback_port_id) {
+  context *ctx = (context *)(malloc(sizeof(context)));
+  *ctx = (context){
+    .callback_port_id = callback_port_id,
+    .entrypoint = RECV_FILE,
+  };
+  return ClientRecvFile((void*)(ctx), client_id, code, async_callback);
+}

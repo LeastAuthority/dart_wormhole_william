@@ -39,6 +39,12 @@ typedef ClientRecvTextNative = Int32 Function(Uint32 goClientId,
 typedef ClientRecvText = int Function(int goClientId, Pointer<Utf8> code,
     int callbackPortId);
 
+typedef ClientRecvFileNative = Int32 Function(Uint32 goClientId,
+    Pointer<Utf8> code, Int32 callbackPortId);
+
+typedef ClientRecvFile = int Function(int goClientId, Pointer<Utf8> code,
+    int callbackPortId);
+
 class NativeClient {
   late final DynamicLibrary _wormholeWilliamLib;
   late final DynamicLibrary _asyncCallbackLib;
@@ -79,6 +85,11 @@ class NativeClient {
     return _clientRecvText(_goClientId, code, callbackPortId);
   }
 
+  int clientRecvFile(
+      Pointer<Utf8> code, int callbackPortId) {
+    return _clientRecvFile(_goClientId, code, callbackPortId);
+  }
+
   // -- getters for wrapping native functions in dart --//
   ClientSendText get _clientSendText {
     return _asyncCallbackLib
@@ -95,6 +106,12 @@ class NativeClient {
   ClientRecvText get _clientRecvText {
     return _asyncCallbackLib
         .lookup<NativeFunction<ClientRecvTextNative>>('async_ClientRecvText')
+        .asFunction();
+  }
+
+  ClientRecvFile get _clientRecvFile {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<ClientRecvFileNative>>('async_ClientRecvFile')
         .asFunction();
   }
 
