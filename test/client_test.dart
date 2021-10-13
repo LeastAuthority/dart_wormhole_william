@@ -14,11 +14,11 @@ void main() {
     // TODO: figure this out!
 
     test('#newClient', () {
-      NativeClient _native = NativeClient();
+      // NativeClient _native = NativeClient();
       // TODO test anything here
     });
 
-    late NativeClient _native;
+    // late NativeClient _native;
     int goClient = -1;
     Pointer<Utf8> codeC = ''.toNativeUtf8();
 
@@ -31,7 +31,7 @@ void main() {
       //  "Unsupported operation: Operation 'toDartString' not allowed on a 'nullptr'" unless initially set.
       codeOutC.value = ''.toNativeUtf8();
 
-      _native = NativeClient();
+      // _native = NativeClient();
 
       // TODO test
 
