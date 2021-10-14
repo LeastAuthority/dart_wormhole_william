@@ -8,8 +8,16 @@ import 'native_context.dart';
 typedef InitDartApiNative = IntPtr Function(Pointer<Void>);
 typedef InitDartApi = int Function(Pointer<Void>);
 
-typedef NewClientNative = IntPtr Function();
-typedef NewClient = int Function();
+typedef NewClientNative = IntPtr Function(
+    Pointer<Utf8> appId,
+    Pointer<Utf8> rendezvousUrl,
+    Pointer<Utf8> transitRelayUrl,
+    Int32 passPhraseComponentLength);
+typedef NewClient = int Function(
+    Pointer<Utf8> appId,
+    Pointer<Utf8> rendezvousUrl,
+    Pointer<Utf8> transitRelayUrl,
+    int passPhraseComponentLength);
 
 typedef ClientSendTextNative = Int32 Function(Uint32 goClientId,
     Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codeOut, Int32 callbackPortId);
@@ -33,30 +41,40 @@ typedef ClientSendFile = int Function(
     Pointer<Pointer<Utf8>> codePtr,
     int callbackPortId);
 
-typedef ClientRecvTextNative = Int32 Function(Uint32 goClientId,
-    Pointer<Utf8> code, Int32 callbackPortId);
+typedef ClientRecvTextNative = Int32 Function(
+    Uint32 goClientId, Pointer<Utf8> code, Int32 callbackPortId);
 
-typedef ClientRecvText = int Function(int goClientId, Pointer<Utf8> code,
-    int callbackPortId);
+typedef ClientRecvText = int Function(
+    int goClientId, Pointer<Utf8> code, int callbackPortId);
 
-typedef ClientRecvFileNative = Int32 Function(Uint32 goClientId,
-    Pointer<Utf8> code, Int32 callbackPortId);
+typedef ClientRecvFileNative = Int32 Function(
+    Uint32 goClientId, Pointer<Utf8> code, Int32 callbackPortId);
 
-typedef ClientRecvFile = int Function(int goClientId, Pointer<Utf8> code,
-    int callbackPortId);
+typedef ClientRecvFile = int Function(
+    int goClientId, Pointer<Utf8> code, int callbackPortId);
+
+const DEFAULT_APP_ID = "lothar.com/wormhole/text-or-file-xfer";
+const DEFAULT_RENDEZVOUS_URL = "ws://localhost:4000/v1";
+const DEFAULT_TRANSIT_RELAY_URL = "tcp:localhost:4001";
+const DEFAULT_PASSPHRASE_COMPONENT_LENGTH = 2;
 
 class NativeClient {
   late final DynamicLibrary _wormholeWilliamLib;
   late final DynamicLibrary _asyncCallbackLib;
   late final _goClientId;
 
-  NativeClient() {
+  NativeClient(
+      {String appId = DEFAULT_APP_ID,
+      String rendezvousUrl = DEFAULT_RENDEZVOUS_URL,
+      String transitRelayUrl = DEFAULT_TRANSIT_RELAY_URL,
+      int passPhraseComponentLength = DEFAULT_PASSPHRASE_COMPONENT_LENGTH}) {
     _wormholeWilliamLib =
         DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
     _asyncCallbackLib =
         DynamicLibrary.open(libName("bindings", version: "1.0.0"));
     _initDartApi(NativeApi.initializeApiDLData);
-    _goClientId = _newClient();
+    _goClientId = _newClient(appId.toNativeUtf8(), rendezvousUrl.toNativeUtf8(),
+        transitRelayUrl.toNativeUtf8(), passPhraseComponentLength);
   }
 
   NewClient get _newClient {
@@ -80,13 +98,11 @@ class NativeClient {
         _goClientId, fileName, length, fileBytes, codeOut, callbackPortId);
   }
 
-  int clientRecvText(
-      Pointer<Utf8> code, int callbackPortId) {
+  int clientRecvText(Pointer<Utf8> code, int callbackPortId) {
     return _clientRecvText(_goClientId, code, callbackPortId);
   }
 
-  int clientRecvFile(
-      Pointer<Utf8> code, int callbackPortId) {
+  int clientRecvFile(Pointer<Utf8> code, int callbackPortId) {
     return _clientRecvFile(_goClientId, code, callbackPortId);
   }
 
