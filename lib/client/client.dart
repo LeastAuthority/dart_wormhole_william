@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:ffi/ffi.dart';
+import 'package:path/path.dart' as path;
+
 import 'package:dart_wormhole_william/client/exceptions.dart';
 import 'package:dart_wormhole_william/client/file_struct.dart';
-import 'package:ffi/ffi.dart';
 
 import 'file_struct.dart';
 import 'native_client.dart';
@@ -17,7 +20,15 @@ class SendResult {
   SendResult(this.code, this.done);
 }
 
-class Client {
+abstract class ClientInterface {
+  Future<SendResult> sendText(String msg);
+  Future<String> recvText(String code);
+  Future<SendResult> sendFile(File file);
+  // TODO: Future<Stream<Uint8>> recvFile(String code);
+  Future<Uint8List> recvFile(String code);
+}
+
+class Client implements ClientInterface {
   late NativeClient _native;
 
   Client() {
@@ -31,7 +42,7 @@ class Client {
 
     final rxPort = ReceivePort()
       ..listen((dynamic errCode) {
-        if (errCode != 0) {
+        if (errCode is int) {
         // TODO: Create exception implementation(s).
           final exception = Exception('Failed to send text. Error code: $errCode');
           done.completeError(exception);
@@ -60,8 +71,6 @@ class Client {
 
   Future<String> recvText(String code) {
     final done = Completer<String>();
-    // TODO: much much is it allocating?
-    Pointer<Pointer<Utf8>> msgOut = calloc();
 
     final rxPort = ReceivePort()
       ..listen((dynamic response) {
@@ -71,15 +80,12 @@ class Client {
           done.completeError(exception);
           throw exception;
         }
-        
-        // Pointer<FileStruct> file = Pointer.fromAddress(response);
-        // final data = file.ref.data.asTypedList(file.ref.size);
 
         done.complete(String.fromCharCodes(response));
       });
 
     final int errCode = _native.clientRecvText(
-        code.toNativeUtf8(), msgOut, rxPort.sendPort.nativePort);
+        code.toNativeUtf8(), rxPort.sendPort.nativePort);
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
       throw Exception('Failed to send text. Error code: $errCode');
@@ -88,32 +94,34 @@ class Client {
     return done.future;
   }
 
-  Future<String> sendFile(String fileName, int length, Uint8List fileBytes) {
+  Future<SendResult> sendFile(File file) async {
+    final fileName = path.basename(file.path);
+    final length = await file.length();
     final done = Completer<void>();
 
     Pointer<Pointer<Utf8>> codeOut = calloc();
-    // TODO: use Uint8 instead (?)
-    final Pointer<Uint8> bytes =
+    // TODO: figure out if we can avoid copying data.
+    // e.g. ByteData | ByteBuffer | Uint8Array (?)
+    final Pointer<Uint8> nativeBytes =
         malloc(length); // Allocator<Uint8>.allocate(length);
     // Uint8Array(length);
 
-    // TODO: figure out if we can avoid copying data.
-    // e.g. Uint8Array
-    for (int i = 0; i < fileBytes.length; i++) {
-      bytes[i] = fileBytes[i];
-    }
-
     final rxPort = ReceivePort()
       ..listen((dynamic errCode) {
-        if (errCode != 0) {
+        if (errCode is int) {
           // TODO: Create exception implementation(s).
           throw Exception('Failed while sending text. Error code: $errCode');
         }
         done.complete();
       });
 
+    final fileBytes = file.readAsBytesSync();
+    for (int i = 0; i < fileBytes.length; i++) {
+      nativeBytes[i] = fileBytes[i];
+    }
+
     final int errCode = _native.clientSendFile(fileName.toNativeUtf8(),
-        length, bytes, codeOut, rxPort.sendPort.nativePort);
+        length, nativeBytes, codeOut, rxPort.sendPort.nativePort);
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
       throw Exception('Failed to send text. Error code: $errCode');
@@ -122,7 +130,32 @@ class Client {
     final Pointer<Utf8> code = codeOut.value;
     calloc.free(codeOut);
 
-    // TODO: error handling
-    return Future.value(code.toDartString());
+    return SendResult(code.toDartString(), done.future);
+  }
+
+  Future<Uint8List> recvFile(String code) {
+    final done = Completer<Uint8List>();
+
+    final rxPort = ReceivePort()
+      ..listen((dynamic response) {
+        if (response is int) {
+          // TODO: Create exception implementation(s).
+          final exception = Exception('Failed while sending text. Error code: $response');
+          done.completeError(exception);
+          throw exception;
+        }
+
+        // done.complete(String.fromCharCodes(response));
+        done.complete(response);
+      });
+
+    final int errCode = _native.clientRecvFile(
+        code.toNativeUtf8(), rxPort.sendPort.nativePort);
+    if (errCode != 0) {
+      // TODO: Create exception implementation(s).
+      throw Exception('Failed to send text. Error code: $errCode');
+    }
+
+    return done.future;
   }
 }
