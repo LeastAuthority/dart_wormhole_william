@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 
 import 'package:dart_wormhole_william/client/exceptions.dart';
 import 'package:dart_wormhole_william/client/file_struct.dart';
+import 'package:dart_wormhole_william/client/config.dart';
 
 import 'file_struct.dart';
 import 'native_client.dart';
@@ -23,8 +24,8 @@ class SendResult {
 class Client {
   late NativeClient _native;
 
-  Client() {
-    _native = NativeClient();
+  Client({Config? config}) {
+    _native = NativeClient(config: config);
   }
 
   Future<SendResult> sendText(String msg) {

@@ -35,11 +35,12 @@ bool entrypoint_is(context *ctx, const char *other) {
   return strcmp(ctx->entrypoint, other) == 0;
 }
 
-void async_callback(void *ctx, void *value, int32_t err_code) {
+void async_callback(void *ptr, result_t *result) {
   debugf("value: %p", value);
   bool dart_message_sent = false;
-  context* _ctx = (context*)(ctx);
-  intptr_t callback_port_id = _ctx->callback_port_id;
+  context* ctx = (context*)(ptr);
+  intptr_t callback_port_id = ctx->callback_port_id;
+  int32_t err_code = result->err_code;
 
   Dart_CObject response;
 
@@ -49,19 +50,19 @@ void async_callback(void *ctx, void *value, int32_t err_code) {
     debugf("err_code: %d", err_code);
     response.type = Dart_CObject_kInt32;
     response.value.as_int32 = err_code;
-  } else if (entrypoint_is(_ctx, SEND_FILE)) {
+  } else if (entrypoint_is(ctx, SEND_FILE)) {
     debugmsg("SEND_FILE");
       response = (Dart_CObject){
         .type = Dart_CObject_kNull,
       };
-  } else if (entrypoint_is(_ctx, SEND_TEXT)) {
+  } else if (entrypoint_is(ctx, SEND_TEXT)) {
     debugmsg("SEND_TEXT");
       response = (Dart_CObject){
         .type = Dart_CObject_kNull,
       };
-  } else if (entrypoint_is(_ctx, RECV_FILE)) {
+  } else if (entrypoint_is(ctx, RECV_FILE)) {
     debugmsg("RECV_FILE");
-      file_t *file = (file_t*)(value);
+      file_t *file = (file_t*)(result->file);
 
       response = (Dart_CObject){
         .type = Dart_CObject_kTypedData,
@@ -73,9 +74,9 @@ void async_callback(void *ctx, void *value, int32_t err_code) {
           }
         }
       };
-  } else if (entrypoint_is(_ctx, RECV_TEXT)) {
+  } else if (entrypoint_is(ctx, RECV_TEXT)) {
     debugmsg("RECV_TEXT");
-      file_t *file = (file_t*)(value);
+      file_t *file = (file_t*)(result->file);
 
       response = (Dart_CObject){
         .type = Dart_CObject_kTypedData,

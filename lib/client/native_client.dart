@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 
+import 'package:dart_wormhole_william/client/config.dart';
 import 'native_context.dart';
 
 typedef InitDartApiNative = IntPtr Function(Pointer<Void>);
@@ -63,18 +64,25 @@ class NativeClient {
   late final DynamicLibrary _asyncCallbackLib;
   late final _goClientId;
 
-  NativeClient(
-      {String appId = DEFAULT_APP_ID,
-      String rendezvousUrl = DEFAULT_RENDEZVOUS_URL,
-      String transitRelayUrl = DEFAULT_TRANSIT_RELAY_URL,
-      int passPhraseComponentLength = DEFAULT_PASSPHRASE_COMPONENT_LENGTH}) {
+  String _appId = DEFAULT_APP_ID;
+  String _rendezvousUrl = DEFAULT_RENDEZVOUS_URL;
+  String _transitRelayUrl = DEFAULT_TRANSIT_RELAY_URL;
+  int _passPhraseComponentLength = DEFAULT_PASSPHRASE_COMPONENT_LENGTH;
+
+  NativeClient({Config? config}) {
     _wormholeWilliamLib =
         DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
     _asyncCallbackLib =
         DynamicLibrary.open(libName("bindings", version: "1.0.0"));
     _initDartApi(NativeApi.initializeApiDLData);
-    _goClientId = _newClient(appId.toNativeUtf8(), rendezvousUrl.toNativeUtf8(),
-        transitRelayUrl.toNativeUtf8(), passPhraseComponentLength);
+
+    _appId = config?.appId ?? _appId;
+    _rendezvousUrl = config?.rendezvousUrl ?? _rendezvousUrl;
+    _transitRelayUrl = config?.transitRelayUrl ?? _transitRelayUrl;
+    _passPhraseComponentLength = config?.passPhraseComponentLength ?? _passPhraseComponentLength;
+
+    _goClientId = _newClient(_appId.toNativeUtf8(), _rendezvousUrl.toNativeUtf8(),
+        _transitRelayUrl.toNativeUtf8(), _passPhraseComponentLength);
   }
 
   NewClient get _newClient {
