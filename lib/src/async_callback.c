@@ -36,7 +36,7 @@ bool entrypoint_is(context *ctx, const char *other) {
 }
 
 void async_callback(void *ptr, result_t *result) {
-  debugf("value: %p", value);
+  debugf("result: %p", result);
   bool dart_message_sent = false;
   context* ctx = (context*)(ptr);
   intptr_t callback_port_id = ctx->callback_port_id;
@@ -45,7 +45,7 @@ void async_callback(void *ptr, result_t *result) {
   Dart_CObject response;
 
   // TODO: use codes enum (?)
-  debugf("ctx->entrypoint: %s", _ctx->entrypoint);
+  debugf("ctx->entrypoint: %s", ctx->entrypoint);
   if (err_code != 0) {
     debugf("err_code: %d", err_code);
     response.type = Dart_CObject_kInt32;
