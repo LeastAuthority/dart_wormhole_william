@@ -1,10 +1,7 @@
 import 'dart:ffi';
 import 'dart:io' show Platform;
-import 'package:ffi/ffi.dart';
-import 'package:flutter/material.dart';
 
-import 'package:dart_wormhole_william/client/config.dart';
-import 'native_context.dart';
+import 'package:ffi/ffi.dart';
 
 typedef InitDartApiNative = IntPtr Function(Pointer<Void>);
 typedef InitDartApi = int Function(Pointer<Void>);
@@ -59,6 +56,19 @@ const DEFAULT_RENDEZVOUS_URL = "ws://localhost:4000/v1";
 const DEFAULT_TRANSIT_RELAY_URL = "tcp:localhost:4001";
 const DEFAULT_PASSPHRASE_COMPONENT_LENGTH = 2;
 
+class Config {
+  final String appId;
+  final String rendezvousUrl;
+  final String transitRelayUrl;
+  final int passPhraseComponentLength;
+
+  Config(
+      {this.appId = DEFAULT_APP_ID,
+      this.rendezvousUrl = DEFAULT_RENDEZVOUS_URL,
+      this.transitRelayUrl = DEFAULT_TRANSIT_RELAY_URL,
+      this.passPhraseComponentLength = DEFAULT_PASSPHRASE_COMPONENT_LENGTH});
+}
+
 class NativeClient {
   late final DynamicLibrary _wormholeWilliamLib;
   late final DynamicLibrary _asyncCallbackLib;
@@ -72,17 +82,20 @@ class NativeClient {
   NativeClient({Config? config}) {
     _wormholeWilliamLib =
         DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
-    _asyncCallbackLib =
-        DynamicLibrary.open(libName("bindings", version: "1.0.0"));
+    _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
     _initDartApi(NativeApi.initializeApiDLData);
 
     _appId = config?.appId ?? _appId;
     _rendezvousUrl = config?.rendezvousUrl ?? _rendezvousUrl;
     _transitRelayUrl = config?.transitRelayUrl ?? _transitRelayUrl;
-    _passPhraseComponentLength = config?.passPhraseComponentLength ?? _passPhraseComponentLength;
+    _passPhraseComponentLength =
+        config?.passPhraseComponentLength ?? _passPhraseComponentLength;
 
-    _goClientId = _newClient(_appId.toNativeUtf8(), _rendezvousUrl.toNativeUtf8(),
-        _transitRelayUrl.toNativeUtf8(), _passPhraseComponentLength);
+    _goClientId = _newClient(
+        _appId.toNativeUtf8(),
+        _rendezvousUrl.toNativeUtf8(),
+        _transitRelayUrl.toNativeUtf8(),
+        _passPhraseComponentLength);
   }
 
   NewClient get _newClient {
