@@ -52,8 +52,8 @@ typedef ClientRecvFile = int Function(
     int goClientId, Pointer<Utf8> code, int callbackPortId);
 
 const DEFAULT_APP_ID = "lothar.com/wormhole/text-or-file-xfer";
-const DEFAULT_RENDEZVOUS_URL = "ws://localhost:4000/v1";
-const DEFAULT_TRANSIT_RELAY_URL = "tcp:localhost:4001";
+const DEFAULT_RENDEZVOUS_URL = "ws://relay.magic-wormhole.io:4000/v1";
+const DEFAULT_TRANSIT_RELAY_URL = "tcp:transit.magic-wormhole.io:4001";
 const DEFAULT_PASSPHRASE_COMPONENT_LENGTH = 2;
 
 class Config {
