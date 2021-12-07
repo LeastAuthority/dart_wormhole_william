@@ -25,7 +25,7 @@ class Client {
     _config = config;
   }
 
-  Future<SendResult> sendText(String msg) {
+  Future<SendResult> sendText(String msg) async {
     final done = Completer<void>();
     // TODO: much much is it allocating?
     Pointer<Pointer<Utf8>> codeOut = calloc();
@@ -34,12 +34,11 @@ class Client {
       ..listen((dynamic errCode) {
         if (errCode is int) {
           // TODO: Create exception implementation(s).
-          final exception =
-              Exception('Failed to send text. Error code: $errCode');
-          done.completeError(exception);
-          throw exception;
+          done.completeError(
+              Exception('Failed to send text. Error code: $errCode'));
+        } else {
+          done.complete();
         }
-        done.complete();
       });
 
     final errCode = _native.clientSendText(
@@ -48,32 +47,27 @@ class Client {
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
       calloc.free(codeOut);
-      final exception = Exception('Failed to send text. Error code: $errCode');
-      done.completeError(exception);
-      throw exception;
+      throw Exception('Failed to send text. Error code: $errCode');
     }
 
     final Pointer<Utf8> code = codeOut.value;
     calloc.free(codeOut);
 
-    final result = SendResult(code.toDartString(), done.future);
-    return Future.value(result);
+    return SendResult(code.toDartString(), done.future);
   }
 
-  Future<String> recvText(String code) {
+  Future<String> recvText(String code) async {
     final done = Completer<String>();
 
     final rxPort = ReceivePort()
       ..listen((dynamic response) {
         if (response is int) {
           // TODO: Create exception implementation(s).
-          final exception =
-              Exception('Failed while sending text. Error code: $response');
-          done.completeError(exception);
-          throw exception;
+          done.completeError(
+              Exception('Failed while sending text. Error code: $response'));
+        } else {
+          done.complete(String.fromCharCodes(response));
         }
-
-        done.complete(String.fromCharCodes(response));
       });
 
     final int errCode =
@@ -102,10 +96,11 @@ class Client {
       ..listen((dynamic errCode) {
         if (errCode is int) {
           // TODO: Create exception implementation(s).
-          throw Exception(
-              'Failed while sending file. Error code: $errCode. Config: $_config');
+          done.completeError(Exception(
+              'Failed while sending file. Error code: $errCode. Config: $_config'));
+        } else {
+          done.complete();
         }
-        done.complete();
       });
 
     final fileBytes = await file.readAsBytes();
@@ -127,16 +122,15 @@ class Client {
     return SendResult(code.toDartString(), done.future);
   }
 
-  Future<Uint8List> recvFile(String code) {
+  Future<Uint8List> recvFile(String code) async {
     final done = Completer<Uint8List>();
 
     final rxPort = ReceivePort()
       ..listen((dynamic response) {
         if (response is int) {
           // TODO: Create exception implementation(s).
-          final exception =
-              Exception('Failed while sending text. Error code: $response');
-          done.completeError(exception);
+          done.completeError(
+              Exception('Failed while sending text. Error code: $response'));
         } else if (response is Uint8List) {
           done.complete(response);
         } else {
