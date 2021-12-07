@@ -2,18 +2,14 @@ cmake_minimum_required(VERSION 3.18.1)
 set(PROJECT_NAME "dart_wormhole_william")
 project(${PROJECT_NAME} LANGUAGES CXX C)
 
-# This value is used when generating builds using this plugin, so it must not be
-# changed
 set(PLUGIN_NAME "dart_wormhole_william")
 set(PLUGIN_LIB ${PLUGIN_NAME}_plugin)
 
-# The golden GOOS
-set(GOOS android)
-
-set(CC_FOR_TARGET ${CMAKE_C_COMPILER})
-
 set(WORMHOLE_WILLIAM_GO_DIR "${CMAKE_SOURCE_DIR}/../wormhole-william")
 set(DART_WORMHOLE_WILLIAM_C_DIR "${CMAKE_SOURCE_DIR}/../lib/src")
+
+# The golden GOOS
+set(GOOS android)
 
 if(ANDROID_ABI STREQUAL "x86_64")
   set(GOARCH "amd64")
@@ -24,7 +20,7 @@ elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
 elseif(ANDROID_ABI STREQUAL "x86")
   set(GOARCH "386")
 else()
-  set(GOARCH "please-fail :/")
+  message(FATAL_ERROR "Unrecognized ANDROID_ABI ${ANDROID_ABI}")
 endif()
 
 set(CC_FOR_TARGET
@@ -43,7 +39,11 @@ include(${DART_WORMHOLE_WILLIAM_C_DIR}/../../CMakeLists.txt)
 include(${DART_WORMHOLE_WILLIAM_C_DIR}/CMakeLists.txt)
 
 target_link_libraries(${PLUGIN_LIB} PRIVATE bindings)
+# TODO figure out how not to add this as a dependency of the plugin
+# bindings has wormhole_william as a dependency so this should
+# not be needed. However on startup dlopen fails when this is
+# not added as a direct dependency of the plugin
 target_link_libraries(${PLUGIN_LIB} PRIVATE wormhole_william)
 
-set(dart_wormhole_william_bundled_libraries "" $<TARGET_FILE:wormhole_william>
+set(dart_wormhole_william_bundled_libraries $<TARGET_FILE:wormhole_william>
                                             $<TARGET_FILE:bindings>)

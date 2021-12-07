@@ -27,20 +27,13 @@ target_include_directories(${PLUGIN_LIB}
 target_link_libraries(${PLUGIN_LIB} PRIVATE flutter)
 target_link_libraries(${PLUGIN_LIB} PRIVATE PkgConfig::GTK)
 target_link_libraries(${PLUGIN_LIB} PRIVATE bindings)
-target_link_libraries(${PLUGIN_LIB} PRIVATE $<TARGET_FILE:wormhole_william>)
-# TODO adding include directories to bindings here doesn't make sense
-# although it seems to fix the build, this isn't needed for Android
-# and this include directory is added for the bindings target in its
-# own CMake file
-target_include_directories(bindings PRIVATE ${WORMHOLE_WILLIAM_INCLUDE_DIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 
 # List of absolute paths to libraries that should be bundled with the plugin
 if(dart_wormhole_william_IS_TOP_LEVEL)
-  set(dart_wormhole_william_bundled_libraries "" ${WORMHOLE_WILLIAM_LIB}
+  set(dart_wormhole_william_bundled_libraries $<TARGET_FILE:wormhole_william>
                                               $<TARGET_FILE:bindings>)
 else()
-  set(dart_wormhole_william_bundled_libraries
-      "" ${WORMHOLE_WILLIAM_LIB} $<TARGET_FILE:bindings>
-      PARENT_SCOPE)
+  set(dart_wormhole_william_bundled_libraries $<TARGET_FILE:wormhole_william>
+                                              $<TARGET_FILE:bindings>
+                                              PARENT_SCOPE)
 endif()

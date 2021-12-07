@@ -3,20 +3,19 @@ set(WORMHOLE_WILLIAM_HEADER ${CMAKE_CURRENT_BINARY_DIR}/libwormhole_william.h)
 set(WORMHOLE_WILLIAM_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(WORMHOLE_WILLIAM_C_DIR ${WORMHOLE_WILLIAM_GO_DIR}/c/)
 
-set(PLUGIN_NAME "dart_wormhole_william")
-set(PLUGIN_LIB ${PLUGIN_NAME}_plugin)
-
 if(${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Windows")
   set(EXPORT set)
 else()
   set(EXPORT export)
 endif()
 
-file(GLOB_RECURSE WORMHOLE_WILLIAM_SRC_FILES ${WORMHOLE_WILLIAM_GO_DIR}/**.go
-     ${WORMHOLE_WILLIAM_GO_DIR}/c/**.c ${WORMHOLE_WILLIAM_GO_DIR}/c/**.h)
+file(GLOB_RECURSE WORMHOLE_WILLIAM_SRC_FILES
+  ${WORMHOLE_WILLIAM_GO_DIR}/**.go
+  ${WORMHOLE_WILLIAM_GO_DIR}/c/**.c
+  ${WORMHOLE_WILLIAM_GO_DIR}/c/**.h)
 
-add_custom_target(
-  BUILD_GO_LIBRARY ALL
+add_custom_command(
+  OUTPUT ${WORMHOLE_WILLIAM_LIB} ${WORMHOLE_WILLIAM_HEADER}
   COMMENT Building wormhole_william shared library
   COMMAND
     ${EXPORT} CGO_ENABLED=1&&
@@ -27,24 +26,21 @@ add_custom_target(
     go build -buildmode=c-shared -o ${WORMHOLE_WILLIAM_LIB} ${WORMHOLE_WILLIAM_C_DIR}
   USES_TERMINAL
   DEPENDS ${WORMHOLE_WILLIAM_SRC_FILES}
-  BYPRODUCTS ${WORMHOLE_WILLIAM_LIB} ${WORMHOLE_WILLIAM_HEADER}
   WORKING_DIRECTORY ${WORMHOLE_WILLIAM_GO_DIR})
+
+add_custom_target(
+  wormhole_william_target DEPENDS ${WORMHOLE_WILLIAM_LIB} ${WORMHOLE_WILLIAM_HEADER})
 
 add_library(
   wormhole_william
   SHARED
   IMPORTED
-  DEPENDS ${WORMHOLE_WILLIAM_LIB}
-  IMPORTED_LOCATION ${WORMHOLE_WILLIAM_LIB}
   GLOBAL)
+
+add_dependencies(wormhole_william wormhole_william_target)
 
 set_target_properties(
   wormhole_william
   PROPERTIES LINKER_LANGUAGE CXX
-             # SOURCES ${WORMHOLE_WILLIAM_SRC_FILES}
              IMPORTED_LOCATION ${WORMHOLE_WILLIAM_LIB}
-             GLOBAL TRUE
-             ENABLE_EXPORTS TRUE
              PUBLIC_HEADER ${WORMHOLE_WILLIAM_HEADER})
-
-target_link_libraries(${PLUGIN_LIB} PUBLIC $<TARGET_FILE:wormhole_william>)
