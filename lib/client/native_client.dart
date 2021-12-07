@@ -51,16 +51,16 @@ typedef ClientRecvFileNative = Int32 Function(
 typedef ClientRecvFile = int Function(
     int goClientId, Pointer<Utf8> code, int callbackPortId);
 
-const DEFAULT_APP_ID = "lothar.com/wormhole/text-or-file-xfer";
-const DEFAULT_RENDEZVOUS_URL = "ws://relay.magic-wormhole.io:4000/v1";
-const DEFAULT_TRANSIT_RELAY_URL = "tcp:transit.magic-wormhole.io:4001";
-const DEFAULT_PASSPHRASE_COMPONENT_LENGTH = 2;
-
 class Config {
   final String appId;
   final String rendezvousUrl;
   final String transitRelayUrl;
   final int passPhraseComponentLength;
+
+  static const DEFAULT_APP_ID = "lothar.com/wormhole/text-or-file-xfer";
+  static const DEFAULT_RENDEZVOUS_URL = "ws://relay.magic-wormhole.io:4000/v1";
+  static const DEFAULT_TRANSIT_RELAY_URL = "tcp:transit.magic-wormhole.io:4001";
+  static const DEFAULT_PASSPHRASE_COMPONENT_LENGTH = 2;
 
   Config(
       {this.appId = DEFAULT_APP_ID,
@@ -74,28 +74,19 @@ class NativeClient {
   late final DynamicLibrary _asyncCallbackLib;
   late final _goClientId;
 
-  String _appId = DEFAULT_APP_ID;
-  String _rendezvousUrl = DEFAULT_RENDEZVOUS_URL;
-  String _transitRelayUrl = DEFAULT_TRANSIT_RELAY_URL;
-  int _passPhraseComponentLength = DEFAULT_PASSPHRASE_COMPONENT_LENGTH;
-
   NativeClient({Config? config}) {
     _wormholeWilliamLib =
         DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
     _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
     _initDartApi(NativeApi.initializeApiDLData);
 
-    _appId = config?.appId ?? _appId;
-    _rendezvousUrl = config?.rendezvousUrl ?? _rendezvousUrl;
-    _transitRelayUrl = config?.transitRelayUrl ?? _transitRelayUrl;
-    _passPhraseComponentLength =
-        config?.passPhraseComponentLength ?? _passPhraseComponentLength;
+    Config effectiveConfig = config ?? Config();
 
     _goClientId = _newClient(
-        _appId.toNativeUtf8(),
-        _rendezvousUrl.toNativeUtf8(),
-        _transitRelayUrl.toNativeUtf8(),
-        _passPhraseComponentLength);
+        effectiveConfig.appId.toNativeUtf8(),
+        effectiveConfig.rendezvousUrl.toNativeUtf8(),
+        effectiveConfig.transitRelayUrl.toNativeUtf8(),
+        effectiveConfig.passPhraseComponentLength);
   }
 
   NewClient get _newClient {
