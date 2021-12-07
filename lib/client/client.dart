@@ -89,7 +89,6 @@ class Client {
   Future<SendResult> sendFile(File file) async {
     final fileName = path.basename(file.path);
     final length = await file.length();
-    print("File length was: $length");
     final done = Completer<void>();
 
     Pointer<Pointer<Utf8>> codeOut = calloc();
@@ -101,7 +100,6 @@ class Client {
 
     final rxPort = ReceivePort()
       ..listen((dynamic errCode) {
-        print("Got ${errCode}");
         if (errCode is int) {
           // TODO: Create exception implementation(s).
           throw Exception(
