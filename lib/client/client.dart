@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:path/path.dart' as path;
 
+import 'file_struct.dart';
 import 'native_client.dart';
 
 class SendResult {
@@ -14,6 +15,49 @@ class SendResult {
   Future<void> done;
 
   SendResult(this.code, this.done);
+}
+
+class ClientError {
+  String error;
+  int errorCode;
+  ClientError(this.error, this.errorCode);
+  String toString() {
+    return "Error code: $errorCode. $error";
+  }
+}
+
+extension ResultHandling<T> on Completer<T> {
+  void handleResult(dynamic result, NativeClient nativeClient,
+      T Function(CallbackResult) success) {
+    if (result is int) {
+      print("Pointer in dart was: $result");
+      var callbackResult = Pointer<CallbackResult>.fromAddress(result);
+      print("result was errorCode: ${callbackResult.ref.errorCode}\n"
+          "errorString: ${callbackResult.ref.errorString}\n"
+          "receivedText: ${callbackResult.ref.receivedText}\n"
+          "file: ${callbackResult.ref.file}\n");
+
+      if (callbackResult.ref.errorString != nullptr) {
+        print(
+            "Error string was ${callbackResult.ref.errorString.toDartString()}");
+      }
+
+      if (callbackResult.ref.errorCode != 0) {
+        this.completeError(ClientError(
+            callbackResult.ref.errorString.toDartString(),
+            callbackResult.ref.errorCode));
+      } else {
+        this.complete(success(callbackResult.ref));
+      }
+
+      this.future.whenComplete(() {
+        nativeClient.freeResult(result);
+      });
+    } else {
+      this.completeError(
+          "Result has wrong type. Expected int got ${result.runtimeType}");
+    }
+  }
 }
 
 class Client {
@@ -27,18 +71,13 @@ class Client {
 
   Future<SendResult> sendText(String msg) async {
     final done = Completer<void>();
-    // TODO: much much is it allocating?
     Pointer<Pointer<Utf8>> codeOut = calloc();
 
     final rxPort = ReceivePort()
-      ..listen((dynamic errCode) {
-        if (errCode is int) {
-          // TODO: Create exception implementation(s).
-          done.completeError(
-              Exception('Failed to send text. Error code: $errCode'));
-        } else {
-          done.complete();
-        }
+      ..listen((dynamic result) {
+        done.handleResult(result, _native, (CallbackResult callbackResult) {
+          return;
+        });
       });
 
     final errCode = _native.clientSendText(
@@ -60,14 +99,10 @@ class Client {
     final done = Completer<String>();
 
     final rxPort = ReceivePort()
-      ..listen((dynamic response) {
-        if (response is int) {
-          // TODO: Create exception implementation(s).
-          done.completeError(
-              Exception('Failed while sending text. Error code: $response'));
-        } else {
-          done.complete(String.fromCharCodes(response));
-        }
+      ..listen((dynamic result) {
+        done.handleResult(result, _native, (callbackResult) {
+          return callbackResult.receivedText.toDartString();
+        });
       });
 
     final int errCode =
@@ -93,14 +128,10 @@ class Client {
     // Uint8Array(length);
 
     final rxPort = ReceivePort()
-      ..listen((dynamic errCode) {
-        if (errCode is int) {
-          // TODO: Create exception implementation(s).
-          done.completeError(Exception(
-              'Failed while sending file. Error code: $errCode. Config: $_config'));
-        } else {
-          done.complete();
-        }
+      ..listen((dynamic result) {
+        done.handleResult(result, _native, (callbackResult) {
+          return;
+        });
       });
 
     final fileBytes = await file.readAsBytes();
@@ -126,17 +157,11 @@ class Client {
     final done = Completer<Uint8List>();
 
     final rxPort = ReceivePort()
-      ..listen((dynamic response) {
-        if (response is int) {
-          // TODO: Create exception implementation(s).
-          done.completeError(
-              Exception('Failed while sending text. Error code: $response'));
-        } else if (response is Uint8List) {
-          done.complete(response);
-        } else {
-          done.completeError(
-              Exception("Unknown type: ${response.runtimeType}"));
-        }
+      ..listen((dynamic result) {
+        done.handleResult(result, _native, (callbackResult) {
+          return callbackResult.file.ref.data
+              .asTypedList(callbackResult.file.ref.length);
+        });
       });
 
     final int errCode =

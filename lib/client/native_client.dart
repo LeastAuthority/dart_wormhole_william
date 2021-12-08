@@ -3,6 +3,8 @@ import 'dart:io' show Platform;
 
 import 'package:ffi/ffi.dart';
 
+import 'file_struct.dart';
+
 typedef InitDartApiNative = IntPtr Function(Pointer<Void>);
 typedef InitDartApi = int Function(Pointer<Void>);
 
@@ -50,6 +52,9 @@ typedef ClientRecvFileNative = Int32 Function(
 
 typedef ClientRecvFile = int Function(
     int goClientId, Pointer<Utf8> code, int callbackPortId);
+
+typedef FreeResultNative = Void Function(Pointer<CallbackResult> result);
+typedef FreeResult = void Function(Pointer<CallbackResult> result);
 
 class Config {
   final String appId;
@@ -118,6 +123,10 @@ class NativeClient {
     return _clientRecvFile(_goClientId, code, callbackPortId);
   }
 
+  void freeResult(int result) {
+    _freeResult(Pointer.fromAddress(result));
+  }
+
   // -- getters for wrapping native functions in dart --//
   ClientSendText get _clientSendText {
     return _asyncCallbackLib
@@ -147,6 +156,12 @@ class NativeClient {
     final nativeFnPointer = _asyncCallbackLib
         .lookup<NativeFunction<InitDartApiNative>>('init_dart_api_dl');
     return nativeFnPointer.asFunction<InitDartApi>();
+  }
+
+  FreeResult get _freeResult {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<FreeResultNative>>('free_result')
+        .asFunction();
   }
 
   static String libName(String libraryName, {String? version}) {

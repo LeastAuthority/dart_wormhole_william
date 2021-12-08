@@ -36,6 +36,71 @@ bool entrypoint_is(context *ctx, const char *other) {
   return strcmp(ctx->entrypoint, other) == 0;
 }
 
+// TODO we need to decide if Go should be freeing the result on its end or not
+// It seems like the Dart_PostCObject_DL function does not block until the
+// message is handled and Go currently frees the result as soon as
+// async_callback exits
+//
+// There seems to be two ways to free the memory when it is safe to do so:
+// - Explicitly calling free_result after the client is done with the result
+// - Adding a finalizer and returning a dart object with the free_result
+// function as its finalizer
+//
+// The first approach adds a bit more boilerplate in the client implementation
+// but is explicit.
+//
+// The second one does not seem straightforward to implement but if implemented
+// will have the least friction for the client implementation.
+
+result_t *copy_result(result_t result) {
+  result_t *copy = malloc(sizeof(result_t));
+  *copy = result;
+
+  if (result.err_string != NULL) {
+    copy->err_string = malloc(strlen(result.err_string) * sizeof(char));
+    strcpy(copy->err_string, result.err_string);
+  }
+
+  if (result.file != NULL) {
+    copy->file = malloc(sizeof(file_t));
+    *copy->file = *result.file;
+
+    copy->file->data = malloc(result.file->length);
+    memcpy(copy->file->data, result.file->data, result.file->length);
+
+    copy->file->file_name =
+        malloc(strlen(result.file->file_name) * sizeof(char));
+    strcpy(copy->file->file_name, result.file->file_name);
+  }
+
+  return copy;
+}
+
+void free_result(result_t *result) {
+  debugf("Freeing result located at %p", result);
+  if (result->err_string != NULL) {
+    free(result->err_string);
+  }
+
+  if (result->file != NULL) {
+    if (result->file->data != NULL) {
+      free(result->file->data);
+    }
+
+    if (result->file->file_name != NULL) {
+      free(result->file->file_name);
+    }
+
+    free(result->file);
+  }
+
+  if (result->received_text != NULL) {
+    free(result->received_text);
+  }
+
+  free(result);
+}
+
 void async_callback(void *ptr, result_t *result) {
   debugf("result: %p", result);
   bool dart_message_sent = false;
@@ -43,45 +108,16 @@ void async_callback(void *ptr, result_t *result) {
   intptr_t callback_port_id = ctx->callback_port_id;
   int32_t err_code = result->err_code;
 
-  Dart_CObject response;
+  result_t *copy = copy_result(*result);
 
-  // TODO: use codes enum (?)
-  debugf("ctx->entrypoint: %s", ctx->entrypoint);
-  if (err_code != 0) {
-    debugf("err_code: %d", err_code);
-    response.type = Dart_CObject_kInt32;
-    response.value.as_int32 = err_code;
-  } else if (entrypoint_is(ctx, SEND_FILE)) {
-    debugmsg("SEND_FILE");
-    response = (Dart_CObject){
-        .type = Dart_CObject_kNull,
-    };
-  } else if (entrypoint_is(ctx, SEND_TEXT)) {
-    debugmsg("SEND_TEXT");
-    response = (Dart_CObject){
-        .type = Dart_CObject_kNull,
-    };
-  } else if (entrypoint_is(ctx, RECV_FILE)) {
-    debugmsg("RECV_FILE");
-    file_t *file = (file_t *)(result->file);
+  Dart_CObject response = (Dart_CObject){.type = Dart_CObject_kInt64,
+                                         .value.as_int64 = (int64_t)(copy)};
 
-    response = (Dart_CObject){.type = Dart_CObject_kTypedData,
-                              .value = {.as_typed_data = {
-                                            .type = Dart_TypedData_kUint8,
-                                            .length = file->length,
-                                            .values = file->data,
-                                        }}};
-  } else if (entrypoint_is(ctx, RECV_TEXT)) {
-    debugmsg("RECV_TEXT");
-    file_t *file = (file_t *)(result->file);
-
-    response = (Dart_CObject){.type = Dart_CObject_kTypedData,
-                              .value = {.as_typed_data = {
-                                            .type = Dart_TypedData_kUint8,
-                                            .length = file->length,
-                                            .values = file->data,
-                                        }}};
-  }
+  debugf("Result pointer: %u\nEntrypoint: %s\nResult was: file:%p, "
+         "err_code:%d, err_string:%s, "
+         "received_text:%s",
+         copy, ctx->entrypoint, result->file, result->err_code,
+         result->err_string, result->received_text);
 
   dart_message_sent = Dart_PostCObject_DL(callback_port_id, &response);
 
