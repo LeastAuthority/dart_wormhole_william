@@ -2,6 +2,10 @@ if(NOT DEFINED ENV{FLUTTER_HOME})
   message(FATAL_ERROR "FLUTTER_HOME environment variable must be defined")
 endif()
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  add_compile_options("-DDEBUG")
+endif()
+
 add_library(
   bindings SHARED ${DART_WORMHOLE_WILLIAM_C_DIR}/async_callback.c
                   $ENV{FLUTTER_HOME}/bin/cache/dart-sdk/include/dart_api_dl.c)

@@ -8,8 +8,6 @@
 #include <dart_api_dl.h>
 
 #include "libwormhole_william.h"
-// TODO define this in the build
-#define DEBUG
 
 #ifdef DEBUG
 #define debugmsg(msg) printf("C | %s:%d: " msg "\n", __FILE_NAME__, __LINE__)
