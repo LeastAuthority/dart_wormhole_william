@@ -1,7 +1,19 @@
 .DS_Store
 .dart_tool/
+.ccls-cache/
 
 .packages
 .pub/
 
 build/
+
+android/.classpath
+android/.cxx/
+android/.project
+android/.settings/
+android/gobin/
+example/android/.project
+example/android/.settings/
+linux/Debug/
+linux/compile_commands.json
+linux/flutter/

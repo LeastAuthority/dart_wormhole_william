@@ -1,0 +1,4 @@
+[submodule "wormhole-william"]
+	path = wormhole-william
+	url = https://github.com/leastauthority/wormhole-william
+	branch = master
