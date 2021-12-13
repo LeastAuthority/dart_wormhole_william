@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:path/path.dart' as path;
 
-import 'file_struct.dart';
+import 'c_structs.dart';
 import 'native_client.dart';
 
 class SendResult {
@@ -15,6 +15,12 @@ class SendResult {
   Future<void> done;
 
   SendResult(this.code, this.done);
+}
+
+class ReceivedFile {
+  String fileName;
+  Uint8List data;
+  ReceivedFile(this.fileName, this.data);
 }
 
 class ClientError {
@@ -153,14 +159,16 @@ class Client {
     return SendResult(code.toDartString(), done.future);
   }
 
-  Future<Uint8List> recvFile(String code) async {
-    final done = Completer<Uint8List>();
+  Future<ReceivedFile> recvFile(String code) async {
+    final done = Completer<ReceivedFile>();
 
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, _native, (callbackResult) {
-          return callbackResult.file.ref.data
-              .asTypedList(callbackResult.file.ref.length);
+          return ReceivedFile(
+              callbackResult.file.ref.fileName.toDartString(),
+              callbackResult.file.ref.data
+                  .asTypedList(callbackResult.file.ref.length));
         });
       });
 
