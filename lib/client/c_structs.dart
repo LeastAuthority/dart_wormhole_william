@@ -20,3 +20,10 @@ class CallbackResult extends Struct {
   external Pointer<Utf8> errorString;
   external Pointer<Utf8> receivedText;
 }
+
+class CodeGenerationResult extends Struct {
+  @Int32()
+  external int errorCode;
+  external Pointer<Utf8> errorString;
+  external Pointer<Utf8> code;
+}

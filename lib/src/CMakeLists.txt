@@ -3,7 +3,7 @@ if(NOT DEFINED ENV{FLUTTER_HOME})
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  add_compile_options("-DDEBUG")
+	add_compile_options("-DDESTINY_DEBUG_LOGS")
 endif()
 
 add_library(
