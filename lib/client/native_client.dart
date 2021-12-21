@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io' show Platform;
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -19,26 +20,24 @@ typedef NewClient = int Function(
     Pointer<Utf8> transitRelayUrl,
     int passPhraseComponentLength);
 
-typedef ClientSendTextNative = Int32 Function(Uint32 goClientId,
-    Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codeOut, Int32 callbackPortId);
+typedef ClientSendTextNative = Pointer<CodeGenerationResult> Function(
+    Uint32 goClientId, Pointer<Utf8> msg, Int32 callbackPortId);
 
-typedef ClientSendText = int Function(int goClientId, Pointer<Utf8> msg,
-    Pointer<Pointer<Utf8>> codeOut, int callbackPortId);
+typedef ClientSendText = Pointer<CodeGenerationResult> Function(
+    int goClientId, Pointer<Utf8> msg, int callbackPortId);
 
-typedef ClientSendFileNative = Int32 Function(
+typedef ClientSendFileNative = Pointer<CodeGenerationResult> Function(
     Uint32 goClientId,
     Pointer<Utf8> fileName,
     Uint32 length,
     Pointer<Uint8> fileBytes,
-    Pointer<Pointer<Utf8>> codeOut,
     Int32 callbackPortId);
 
-typedef ClientSendFile = int Function(
+typedef ClientSendFile = Pointer<CodeGenerationResult> Function(
     int goClientId,
     Pointer<Utf8> fileName,
     int length,
     Pointer<Uint8> fileBytes,
-    Pointer<Pointer<Utf8>> codePtr,
     int callbackPortId);
 
 typedef ClientRecvTextNative = Int32 Function(
@@ -55,6 +54,10 @@ typedef ClientRecvFile = int Function(
 
 typedef FreeResultNative = Void Function(Pointer<CallbackResult> result);
 typedef FreeResult = void Function(Pointer<CallbackResult> result);
+
+typedef FreeCodegenResultNative = Void Function(
+    Pointer<CodeGenerationResult> result);
+typedef FreeCodegenResult = void Function(Pointer<CodeGenerationResult> result);
 
 class Config {
   final String appId;
@@ -100,19 +103,19 @@ class NativeClient {
         .asFunction();
   }
 
-  int clientSendText(
-      Pointer<Utf8> msg, Pointer<Pointer<Utf8>> codeOut, int callbackPortId) {
-    return _clientSendText(_goClientId, msg, codeOut, callbackPortId);
+  Pointer<CodeGenerationResult> clientSendText(
+      Pointer<Utf8> msg, int callbackPortId) {
+    return _clientSendText(_goClientId, msg, callbackPortId);
   }
 
-  int clientSendFile(
+  Pointer<CodeGenerationResult> clientSendFile(
       Pointer<Utf8> fileName,
       int length,
       Pointer<Uint8> fileBytes,
       Pointer<Pointer<Utf8>> codeOut,
       int callbackPortId) {
     return _clientSendFile(
-        _goClientId, fileName, length, fileBytes, codeOut, callbackPortId);
+        _goClientId, fileName, length, fileBytes, callbackPortId);
   }
 
   int clientRecvText(Pointer<Utf8> code, int callbackPortId) {
@@ -125,6 +128,10 @@ class NativeClient {
 
   void freeResult(int result) {
     _freeResult(Pointer.fromAddress(result));
+  }
+
+  void freeCodegenResult(int codegenResult) {
+    _freeCodegenResult(Pointer.fromAddress(codegenResult));
   }
 
   // -- getters for wrapping native functions in dart --//
@@ -161,6 +168,12 @@ class NativeClient {
   FreeResult get _freeResult {
     return _asyncCallbackLib
         .lookup<NativeFunction<FreeResultNative>>('free_result')
+        .asFunction();
+  }
+
+  FreeCodegenResult get _freeCodegenResult {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<FreeCodegenResultNative>>('free_codegen_result')
         .asFunction();
   }
 

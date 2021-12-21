@@ -9,7 +9,7 @@
 
 #include "libwormhole_william.h"
 
-#ifdef DEBUG
+#ifdef DDESTINY_DEBUG_LOGS
 #define debugmsg(msg) printf("C | %s:%d: " msg "\n", __FILE_NAME__, __LINE__)
 #define debugf(format, ...)                                                    \
   printf("C | %s:%d: " format "\n", __FILE_NAME__, __LINE__, __VA_ARGS__)
@@ -59,26 +59,26 @@ void async_callback(void *ptr, result_t *result) {
   free(ctx);
 }
 
-int async_ClientSendText(uintptr_t client_id, char *msg, char **code_out,
-                         intptr_t callback_port_id) {
+codegen_result_t *async_ClientSendText(uintptr_t client_id, char *msg,
+                                       intptr_t callback_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
       .callback_port_id = callback_port_id,
       .entrypoint = SEND_TEXT,
   };
-  return ClientSendText(ctx, client_id, msg, code_out, async_callback);
+  return ClientSendText(ctx, client_id, msg, async_callback);
 }
 
 // TODO: factor `file_name`, `lenght`, and `file_bytes` out to a struct.
-int async_ClientSendFile(uintptr_t client_id, char *file_name, int32_t length,
-                         void *file_bytes, char **code_out,
-                         intptr_t callback_port_id) {
+codegen_result_t *async_ClientSendFile(uintptr_t client_id, char *file_name,
+                                       int32_t length, void *file_bytes,
+                                       intptr_t callback_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
       .callback_port_id = callback_port_id,
       .entrypoint = SEND_FILE,
   };
-  return ClientSendFile(ctx, client_id, file_name, length, file_bytes, code_out,
+  return ClientSendFile(ctx, client_id, file_name, length, file_bytes,
                         async_callback);
 }
 

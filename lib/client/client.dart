@@ -12,7 +12,7 @@ import 'native_client.dart';
 
 class SendResult {
   String code;
-  Future<void> done;
+  Future<CallbackResult> done;
 
   SendResult(this.code, this.done);
 }
@@ -76,29 +76,29 @@ class Client {
   }
 
   Future<SendResult> sendText(String msg) async {
-    final done = Completer<void>();
+    final done = Completer<CallbackResult>();
     Pointer<Pointer<Utf8>> codeOut = calloc();
 
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
-        done.handleResult(result, _native, (CallbackResult callbackResult) {
-          return;
+        done.handleResult(result, _native, (callbackResult) {
+          return callbackResult;
         });
       });
 
-    final errCode = _native.clientSendText(
-        msg.toNativeUtf8(), codeOut, rxPort.sendPort.nativePort);
+    final codeGenResult =
+        _native.clientSendText(msg.toNativeUtf8(), rxPort.sendPort.nativePort);
 
-    if (errCode != 0) {
-      // TODO: Create exception implementation(s).
-      calloc.free(codeOut);
-      throw Exception('Failed to send text. Error code: $errCode');
+    try {
+      if (codeGenResult.ref.errorCode != 0) {
+        throw Exception(
+            'Failed to send text. Error code: ${codeGenResult.ref.errorCode}, Error: ${codeGenResult.ref.errorString}');
+      }
+
+      return SendResult(codeGenResult.ref.code.toDartString(), done.future);
+    } finally {
+      _native.freeCodegenResult(codeGenResult.address);
     }
-
-    final Pointer<Utf8> code = codeOut.value;
-    calloc.free(codeOut);
-
-    return SendResult(code.toDartString(), done.future);
   }
 
   Future<String> recvText(String code) async {
@@ -124,7 +124,7 @@ class Client {
   Future<SendResult> sendFile(File file) async {
     final fileName = path.basename(file.path);
     final length = await file.length();
-    final done = Completer<void>();
+    final done = Completer<CallbackResult>();
 
     Pointer<Pointer<Utf8>> codeOut = calloc();
     // TODO: figure out if we can avoid copying data.
@@ -136,7 +136,7 @@ class Client {
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, _native, (callbackResult) {
-          return;
+          return callbackResult;
         });
       });
 
@@ -145,18 +145,20 @@ class Client {
       nativeBytes[i] = fileBytes[i];
     }
 
-    final int errCode = _native.clientSendFile(fileName.toNativeUtf8(), length,
-        nativeBytes, codeOut, rxPort.sendPort.nativePort);
-    if (errCode != 0) {
-      // TODO: Create exception implementation(s).
-      throw Exception(
-          'Failed to send file. Error code: $errCode. Config: ${_config.toString()}');
+    final codeGenResult = _native.clientSendFile(fileName.toNativeUtf8(),
+        length, nativeBytes, codeOut, rxPort.sendPort.nativePort);
+
+    try {
+      if (codeGenResult.ref.errorCode != 0) {
+        return Future.error(ClientError(
+            codeGenResult.ref.errorString.toDartString(),
+            codeGenResult.ref.errorCode));
+      } else {
+        return SendResult(codeGenResult.ref.code.toDartString(), done.future);
+      }
+    } finally {
+      _native.freeCodegenResult(codeGenResult.address);
     }
-
-    final Pointer<Utf8> code = codeOut.value;
-    calloc.free(codeOut);
-
-    return SendResult(code.toDartString(), done.future);
   }
 
   Future<ReceivedFile> recvFile(String code) async {
