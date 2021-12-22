@@ -20,6 +20,7 @@
 
 typedef struct {
   intptr_t callback_port_id;
+  intptr_t progress_port_id;
   const char *entrypoint;
 } context;
 
@@ -30,33 +31,23 @@ const char *RECV_FILE = "context/recv_file";
 
 intptr_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
 
+#define DartSend(port, message)                                                \
+  Dart_CObject response = (Dart_CObject){                                      \
+      .type = Dart_CObject_kInt64, .value.as_int64 = (int64_t)(message)};      \
+  if (!Dart_PostCObject_DL(port, &response)) {                                 \
+    debugf("Sending message %p to port %d failed", message, port);             \
+  }
+
 bool entrypoint_is(context *ctx, const char *other) {
   return strcmp(ctx->entrypoint, other) == 0;
 }
 
 void async_callback(void *ptr, result_t *result) {
-  debugf("result: %p", result);
-  bool dart_message_sent = false;
-  context *ctx = (context *)(ptr);
-  intptr_t callback_port_id = ctx->callback_port_id;
-  int32_t err_code = result->err_code;
+  DartSend(((context *)ptr)->callback_port_id, result);
+}
 
-  Dart_CObject response = (Dart_CObject){.type = Dart_CObject_kInt64,
-                                         .value.as_int64 = (int64_t)(result)};
-
-  debugf("Result pointer: %u\nEntrypoint: %s\nResult was: file:%p, "
-         "err_code:%d, err_string:%s, "
-         "received_text:%s",
-         result, ctx->entrypoint, result->file, result->err_code,
-         result->err_string, result->received_text);
-
-  dart_message_sent = Dart_PostCObject_DL(callback_port_id, &response);
-
-  if (!dart_message_sent) {
-    debugmsg("Sending callback result to dart isolate failed");
-  }
-
-  free(ctx);
+void update_progress_callback(void *ptr, progress_t *progress) {
+  DartSend(((context *)ptr)->progress_port_id, progress);
 }
 
 codegen_result_t *async_ClientSendText(uintptr_t client_id, char *msg,
@@ -72,14 +63,16 @@ codegen_result_t *async_ClientSendText(uintptr_t client_id, char *msg,
 // TODO: factor `file_name`, `lenght`, and `file_bytes` out to a struct.
 codegen_result_t *async_ClientSendFile(uintptr_t client_id, char *file_name,
                                        int32_t length, void *file_bytes,
-                                       intptr_t callback_port_id) {
+                                       intptr_t callback_port_id,
+                                       intptr_t progress_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
       .callback_port_id = callback_port_id,
       .entrypoint = SEND_FILE,
+      .progress_port_id = progress_port_id,
   };
   return ClientSendFile(ctx, client_id, file_name, length, file_bytes,
-                        async_callback);
+                        async_callback, update_progress_callback);
 }
 
 int async_ClientRecvText(uintptr_t client_id, char *code,

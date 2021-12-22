@@ -31,14 +31,16 @@ typedef ClientSendFileNative = Pointer<CodeGenerationResult> Function(
     Pointer<Utf8> fileName,
     Uint32 length,
     Pointer<Uint8> fileBytes,
-    Int32 callbackPortId);
+    Int32 callbackPortId,
+    Int32 progressPortId);
 
 typedef ClientSendFile = Pointer<CodeGenerationResult> Function(
     int goClientId,
     Pointer<Utf8> fileName,
     int length,
     Pointer<Uint8> fileBytes,
-    int callbackPortId);
+    int callbackPortId,
+    int progressPortId);
 
 typedef ClientRecvTextNative = Int32 Function(
     Uint32 goClientId, Pointer<Utf8> code, Int32 callbackPortId);
@@ -113,9 +115,10 @@ class NativeClient {
       int length,
       Pointer<Uint8> fileBytes,
       Pointer<Pointer<Utf8>> codeOut,
-      int callbackPortId) {
-    return _clientSendFile(
-        _goClientId, fileName, length, fileBytes, callbackPortId);
+      int callbackPortId,
+      int progressPortId) {
+    return _clientSendFile(_goClientId, fileName, length, fileBytes,
+        callbackPortId, progressPortId);
   }
 
   int clientRecvText(Pointer<Utf8> code, int callbackPortId) {

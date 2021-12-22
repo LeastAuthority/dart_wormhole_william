@@ -36,17 +36,7 @@ extension ResultHandling<T> on Completer<T> {
   void handleResult(dynamic result, NativeClient nativeClient,
       T Function(CallbackResult) success) {
     if (result is int) {
-      print("Pointer in dart was: $result");
       var callbackResult = Pointer<CallbackResult>.fromAddress(result);
-      print("result was errorCode: ${callbackResult.ref.errorCode}\n"
-          "errorString: ${callbackResult.ref.errorString}\n"
-          "receivedText: ${callbackResult.ref.receivedText}\n"
-          "file: ${callbackResult.ref.file}\n");
-
-      if (callbackResult.ref.errorString != nullptr) {
-        print(
-            "Error string was ${callbackResult.ref.errorString.toDartString()}");
-      }
 
       if (callbackResult.ref.errorCode != 0) {
         this.completeError(ClientError(
@@ -68,16 +58,13 @@ extension ResultHandling<T> on Completer<T> {
 
 class Client {
   late NativeClient _native;
-  late Config? _config;
 
   Client({Config? config}) {
     _native = NativeClient(config: config);
-    _config = config;
   }
 
   Future<SendResult> sendText(String msg) async {
     final done = Completer<CallbackResult>();
-    Pointer<Pointer<Utf8>> codeOut = calloc();
 
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
@@ -121,7 +108,17 @@ class Client {
     return done.future;
   }
 
-  Future<SendResult> sendFile(File file) async {
+  static void defaultProgressHandler(dynamic message) {
+    if (message is int) {
+      var progress = Pointer<Progress>.fromAddress(message);
+
+      print(
+          "Transfer progress: ${progress.ref.sentBytes}/${progress.ref.totalBytes}");
+    }
+  }
+
+  Future<SendResult> sendFile(File file,
+      [void Function(dynamic) optProgressFunc = defaultProgressHandler]) async {
     final fileName = path.basename(file.path);
     final length = await file.length();
     final done = Completer<CallbackResult>();
@@ -145,8 +142,18 @@ class Client {
       nativeBytes[i] = fileBytes[i];
     }
 
-    final codeGenResult = _native.clientSendFile(fileName.toNativeUtf8(),
-        length, nativeBytes, codeOut, rxPort.sendPort.nativePort);
+    final progressPort = ReceivePort()
+      ..listen((message) {
+        (optProgressFunc)(message);
+      });
+
+    final codeGenResult = _native.clientSendFile(
+        fileName.toNativeUtf8(),
+        length,
+        nativeBytes,
+        codeOut,
+        rxPort.sendPort.nativePort,
+        progressPort.sendPort.nativePort);
 
     try {
       if (codeGenResult.ref.errorCode != 0) {

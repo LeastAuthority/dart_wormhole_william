@@ -27,3 +27,11 @@ class CodeGenerationResult extends Struct {
   external Pointer<Utf8> errorString;
   external Pointer<Utf8> code;
 }
+
+class Progress extends Struct {
+  @Int64()
+  external int sentBytes;
+
+  @Int64()
+  external int totalBytes;
+}
