@@ -113,7 +113,7 @@ class Client {
       var progress = Pointer<Progress>.fromAddress(message);
 
       print(
-          "Transfer progress: ${progress.ref.sentBytes}/${progress.ref.totalBytes}");
+          "Transfer progress: ${progress.ref.transferredBytes}/${progress.ref.totalBytes}");
     }
   }
 
