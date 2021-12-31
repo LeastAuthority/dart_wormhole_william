@@ -168,7 +168,8 @@ class Client {
     }
   }
 
-  Future<ReceivedFile> recvFile(String code) async {
+  Future<ReceivedFile> recvFile(String code,
+      [void Function(dynamic) optProgressFunc = defaultProgressHandler]) async {
     final done = Completer<ReceivedFile>();
 
     final rxPort = ReceivePort()
@@ -181,8 +182,13 @@ class Client {
         });
       });
 
-    final int errCode =
-        _native.clientRecvFile(code.toNativeUtf8(), rxPort.sendPort.nativePort);
+    final progressPort = ReceivePort()
+      ..listen((message) {
+        (optProgressFunc)(message);
+      });
+
+    final int errCode = _native.clientRecvFile(code.toNativeUtf8(),
+        rxPort.sendPort.nativePort, progressPort.sendPort.nativePort);
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
       throw Exception('Failed to send text. Error code: $errCode');

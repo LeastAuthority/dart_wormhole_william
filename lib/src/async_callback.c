@@ -86,11 +86,13 @@ int async_ClientRecvText(uintptr_t client_id, char *code,
 }
 
 int async_ClientRecvFile(uintptr_t client_id, char *code,
-                         intptr_t callback_port_id) {
+                         intptr_t callback_port_id, intptr_t progress_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
       .callback_port_id = callback_port_id,
       .entrypoint = RECV_FILE,
+      .progress_port_id = progress_port_id,
   };
-  return ClientRecvFile((void *)(ctx), client_id, code, async_callback);
+  return ClientRecvFile((void *)(ctx), client_id, code, async_callback,
+                        update_progress_callback);
 }
