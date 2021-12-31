@@ -30,7 +30,7 @@ class CodeGenerationResult extends Struct {
 
 class Progress extends Struct {
   @Int64()
-  external int sentBytes;
+  external int transferredBytes;
 
   @Int64()
   external int totalBytes;
