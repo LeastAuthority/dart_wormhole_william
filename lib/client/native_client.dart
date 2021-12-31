@@ -1,6 +1,5 @@
 import 'dart:ffi';
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -48,11 +47,11 @@ typedef ClientRecvTextNative = Int32 Function(
 typedef ClientRecvText = int Function(
     int goClientId, Pointer<Utf8> code, int callbackPortId);
 
-typedef ClientRecvFileNative = Int32 Function(
-    Uint32 goClientId, Pointer<Utf8> code, Int32 callbackPortId);
+typedef ClientRecvFileNative = Int32 Function(Uint32 goClientId,
+    Pointer<Utf8> code, Int32 callbackPortId, Int32 progressPortId);
 
 typedef ClientRecvFile = int Function(
-    int goClientId, Pointer<Utf8> code, int callbackPortId);
+    int goClientId, Pointer<Utf8> code, int callbackPortId, int progressPortId);
 
 typedef FreeResultNative = Void Function(Pointer<CallbackResult> result);
 typedef FreeResult = void Function(Pointer<CallbackResult> result);
@@ -125,8 +124,9 @@ class NativeClient {
     return _clientRecvText(_goClientId, code, callbackPortId);
   }
 
-  int clientRecvFile(Pointer<Utf8> code, int callbackPortId) {
-    return _clientRecvFile(_goClientId, code, callbackPortId);
+  int clientRecvFile(
+      Pointer<Utf8> code, int callbackPortId, int progressPortId) {
+    return _clientRecvFile(_goClientId, code, callbackPortId, progressPortId);
   }
 
   void freeResult(int result) {
