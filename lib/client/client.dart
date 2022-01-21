@@ -133,19 +133,19 @@ class Client {
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, _native, (callbackResult) {
+          malloc.free(nativeBytes);
           return callbackResult;
         });
       });
 
-    final fileBytes = await file.readAsBytes();
-    for (int i = 0; i < fileBytes.length; i++) {
-      nativeBytes[i] = fileBytes[i];
-    }
-
-    final progressPort = ReceivePort()
-      ..listen((message) {
-        (optProgressFunc)(message);
+    await File(file.path).readAsBytes().then((bytes) {
+      var i = 0;
+      bytes.forEach((byte) {
+        nativeBytes[i++] = byte;
       });
+    });
+
+    final progressPort = ReceivePort()..listen(optProgressFunc);
 
     final codeGenResult = _native.clientSendFile(
         fileName.toNativeUtf8(),
