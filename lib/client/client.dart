@@ -117,43 +117,72 @@ class Client {
     }
   }
 
+  static int seekf(RandomAccessFile openFile, int offset, int whence) {
+    print("Seek from dart called with offset:$offset, whence:$whence");
+    const SeekStart = 0;
+    const SeekCurrent = 1;
+    const SeekEnd = 2;
+
+    final position = openFile.positionSync();
+    final int length = openFile.lengthSync();
+    var newPosition;
+
+    print("Length of file is: $length. Current position is: $position");
+
+    switch (whence) {
+      case SeekStart:
+        newPosition = offset;
+        break;
+      case SeekCurrent:
+        newPosition = position + offset;
+        break;
+      case SeekEnd:
+        newPosition = length - offset - 1;
+        break;
+    }
+
+    if (newPosition < length && newPosition >= 0) {
+      openFile.setPositionSync(newPosition);
+      return newPosition;
+    } else {
+      return position;
+    }
+  }
+
   Future<SendResult> sendFile(File file,
       [void Function(dynamic) optProgressFunc = defaultProgressHandler]) async {
     final fileName = path.basename(file.path);
-    final length = await file.length();
     final done = Completer<CallbackResult>();
-
-    Pointer<Pointer<Utf8>> codeOut = calloc();
-    // TODO: figure out if we can avoid copying data.
-    // e.g. ByteData | ByteBuffer | Uint8Array (?)
-    final Pointer<Uint8> nativeBytes =
-        malloc(length); // Allocator<Uint8>.allocate(length);
-    // Uint8Array(length);
 
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, _native, (callbackResult) {
-          malloc.free(nativeBytes);
           return callbackResult;
         });
       });
 
-    await File(file.path).readAsBytes().then((bytes) {
-      var i = 0;
-      bytes.forEach((byte) {
-        nativeBytes[i++] = byte;
-      });
-    });
-
     final progressPort = ReceivePort()..listen(optProgressFunc);
+
+    final openFile = file.openSync();
+
+    final readCalls = ReceivePort()
+      ..listen((dynamic message) {
+        if (message is int) {
+          Pointer<ReadArgs> args = Pointer.fromAddress(message);
+          _native.readDone(
+              args.ref.context,
+              openFile
+                  .readIntoSync(args.ref.buffer.asTypedList(args.ref.length)));
+        }
+      });
 
     final codeGenResult = _native.clientSendFile(
         fileName.toNativeUtf8(),
-        length,
-        nativeBytes,
-        codeOut,
         rxPort.sendPort.nativePort,
-        progressPort.sendPort.nativePort);
+        progressPort.sendPort.nativePort,
+        openFile,
+        readCalls.sendPort.nativePort,
+        Pointer.fromFunction<SeekNative>(seekf, 0));
 
     try {
       if (codeGenResult.ref.errorCode != 0) {

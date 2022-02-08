@@ -1,5 +1,6 @@
 import 'dart:ffi';
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, RandomAccessFile;
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -13,6 +14,7 @@ typedef NewClientNative = IntPtr Function(
     Pointer<Utf8> rendezvousUrl,
     Pointer<Utf8> transitRelayUrl,
     Int32 passPhraseComponentLength);
+
 typedef NewClient = int Function(
     Pointer<Utf8> appId,
     Pointer<Utf8> rendezvousUrl,
@@ -28,18 +30,20 @@ typedef ClientSendText = Pointer<CodeGenerationResult> Function(
 typedef ClientSendFileNative = Pointer<CodeGenerationResult> Function(
     Uint32 goClientId,
     Pointer<Utf8> fileName,
-    Uint32 length,
-    Pointer<Uint8> fileBytes,
     Int32 callbackPortId,
-    Int32 progressPortId);
+    Int32 progressPortId,
+    Handle file,
+    Int32 readArgsPort,
+    Pointer<NativeFunction<SeekNative>> seekHandle);
 
 typedef ClientSendFile = Pointer<CodeGenerationResult> Function(
     int goClientId,
     Pointer<Utf8> fileName,
-    int length,
-    Pointer<Uint8> fileBytes,
     int callbackPortId,
-    int progressPortId);
+    int progressPortId,
+    RandomAccessFile file,
+    int readArgsPort,
+    Pointer<NativeFunction<SeekNative>> seek);
 
 typedef ClientRecvTextNative = Int32 Function(
     Uint32 goClientId, Pointer<Utf8> code, Int32 callbackPortId);
@@ -59,6 +63,12 @@ typedef FreeResult = void Function(Pointer<CallbackResult> result);
 typedef FreeCodegenResultNative = Void Function(
     Pointer<CodeGenerationResult> result);
 typedef FreeCodegenResult = void Function(Pointer<CodeGenerationResult> result);
+
+typedef ReadDoneNative = Void Function(Pointer<Void>, Int64);
+typedef ReadDone = void Function(Pointer<Void>, int);
+
+typedef SeekNative = Int64 Function(Handle, Int64 offset, Int64 whence);
+typedef Seek = int Function(RandomAccessFile, int offset, int whence);
 
 class Config {
   final String appId;
@@ -111,13 +121,13 @@ class NativeClient {
 
   Pointer<CodeGenerationResult> clientSendFile(
       Pointer<Utf8> fileName,
-      int length,
-      Pointer<Uint8> fileBytes,
-      Pointer<Pointer<Utf8>> codeOut,
       int callbackPortId,
-      int progressPortId) {
-    return _clientSendFile(_goClientId, fileName, length, fileBytes,
-        callbackPortId, progressPortId);
+      int progressPortId,
+      RandomAccessFile file,
+      int readArgsPort,
+      Pointer<NativeFunction<SeekNative>> seek) {
+    return _clientSendFile(_goClientId, fileName, callbackPortId,
+        progressPortId, file, readArgsPort, seek);
   }
 
   int clientRecvText(Pointer<Utf8> code, int callbackPortId) {
@@ -148,6 +158,16 @@ class NativeClient {
     return _asyncCallbackLib
         .lookup<NativeFunction<ClientSendFileNative>>('async_ClientSendFile')
         .asFunction();
+  }
+
+  ReadDone get _readDone {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<ReadDoneNative>>('read_done')
+        .asFunction();
+  }
+
+  void readDone(Pointer<Void> ctxPtr, int bytesRead) {
+    _readDone(ctxPtr, bytesRead);
   }
 
   ClientRecvText get _clientRecvText {
