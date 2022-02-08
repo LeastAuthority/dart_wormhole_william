@@ -35,3 +35,10 @@ class Progress extends Struct {
   @Int64()
   external int totalBytes;
 }
+
+class ReadArgs extends Struct {
+  external Pointer<Void> context;
+  external Pointer<Uint8> buffer;
+  @Int64()
+  external int length;
+}
