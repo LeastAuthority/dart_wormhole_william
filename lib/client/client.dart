@@ -17,10 +17,20 @@ class SendResult {
   SendResult(this.code, this.done);
 }
 
-class ReceivedFile {
+class PendingDownload {
+  int size;
   String fileName;
-  Uint8List data;
-  ReceivedFile(this.fileName, this.data);
+  void Function(File) accept;
+  void Function() reject;
+
+  PendingDownload(this.size, this.fileName, this.accept, this.reject);
+}
+
+class ReceiveFileResult {
+  PendingDownload pendingDownload;
+  Future<CallbackResult> done;
+
+  ReceiveFileResult(this.pendingDownload, this.done);
 }
 
 class ClientError {
@@ -40,7 +50,9 @@ extension ResultHandling<T> on Completer<T> {
 
       if (callbackResult.ref.errorCode != 0) {
         this.completeError(ClientError(
-            callbackResult.ref.errorString.toDartString(),
+            callbackResult.ref.errorString == nullptr
+                ? "Unknown error"
+                : callbackResult.ref.errorString.toDartString(),
             callbackResult.ref.errorCode));
       } else {
         this.complete(success(callbackResult.ref));
@@ -197,17 +209,18 @@ class Client {
     }
   }
 
-  Future<ReceivedFile> recvFile(String code,
+  Future<ReceiveFileResult> recvFile(String code,
       [void Function(dynamic) optProgressFunc = defaultProgressHandler]) async {
-    final done = Completer<ReceivedFile>();
+    final done = Completer<CallbackResult>();
+    final destinationFile = Completer<IOSink>();
 
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, _native, (callbackResult) {
-          return ReceivedFile(
-              callbackResult.file.ref.fileName.toDartString(),
-              callbackResult.file.ref.data
-                  .asTypedList(callbackResult.file.ref.length));
+          destinationFile.future.then((file) {
+            file.flush().then((dynamic v) => {file.close()});
+          });
+          return callbackResult;
         });
       });
 
@@ -216,13 +229,53 @@ class Client {
         (optProgressFunc)(message);
       });
 
-    final int errCode = _native.clientRecvFile(code.toNativeUtf8(),
-        rxPort.sendPort.nativePort, progressPort.sendPort.nativePort);
+    final pendingDownload = Completer<PendingDownload>();
+
+    final metadataPort = ReceivePort()
+      ..listen((dynamic result) {
+        if (result is int) {
+          Pointer<FileMetadataStruct> received = Pointer.fromAddress(result);
+          pendingDownload.complete(PendingDownload(
+              received.ref.size, received.ref.fileName.toDartString(),
+              (File destination) {
+            destinationFile
+                .complete(destination.openWrite(mode: FileMode.append));
+            _native.acceptDownload(received.ref.context);
+          }, () {
+            // TODO proper error here
+            destinationFile
+                .completeError(ClientError("Transfer rejected", 123));
+            _native.rejectDownload(received.ref.context);
+          }));
+        }
+      });
+
+    final writeBytesPort = ReceivePort()
+      ..listen((dynamic msg) async {
+        if (msg is int) {
+          Pointer<WriteArgs> args = Pointer.fromAddress(msg);
+          await destinationFile.future.then((sink) async {
+            sink.add(args.ref.buffer.asTypedList(args.ref.length));
+            await sink.flush();
+            _native.writeDone(args.ref.context);
+          });
+        }
+      });
+
+    final int errCode = _native.clientRecvFile(
+        code.toNativeUtf8(),
+        rxPort.sendPort.nativePort,
+        progressPort.sendPort.nativePort,
+        metadataPort.sendPort.nativePort,
+        writeBytesPort.sendPort.nativePort);
+
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
       throw Exception('Failed to send text. Error code: $errCode');
     }
 
-    return done.future;
+    return pendingDownload.future.then((metadata) {
+      return ReceiveFileResult(metadata, done.future);
+    });
   }
 }

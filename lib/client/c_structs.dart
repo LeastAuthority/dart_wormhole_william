@@ -2,18 +2,7 @@ import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
 
-class FileStruct extends Struct {
-  @Int32()
-  external int length;
-
-  external Pointer<Uint8> data;
-
-  external Pointer<Utf8> fileName;
-}
-
 class CallbackResult extends Struct {
-  external Pointer<FileStruct> file;
-
   @Int32()
   external int errorCode;
 
@@ -39,6 +28,22 @@ class Progress extends Struct {
 class ReadArgs extends Struct {
   external Pointer<Void> context;
   external Pointer<Uint8> buffer;
-  @Int64()
+  @Int32()
   external int length;
+}
+
+class WriteArgs extends Struct {
+  external Pointer<Void> context;
+  external Pointer<Uint8> buffer;
+  @Int32()
+  external int length;
+}
+
+class FileMetadataStruct extends Struct {
+  @Int64()
+  external int size;
+  external Pointer<Utf8> fileName;
+  @Int32()
+  external int downloadId;
+  external Pointer<Void> context;
 }
