@@ -26,14 +26,28 @@ typedef struct {
   struct {
     void *context;
     uint8_t *buffer;
-    int length;
+    int32_t length;
   } args;
 
-  struct {
+  volatile struct {
     bool done;
     int bytes_read;
   } call_state;
 } read_state;
+
+typedef struct {
+  intptr_t write_args_port;
+
+  int32_t download_id;
+
+  struct {
+    void *context;
+    uint8_t *buffer;
+    int32_t length;
+  } args;
+
+  volatile struct { bool done; } call_state;
+} write_state;
 
 typedef struct {
   const char *entrypoint;
@@ -42,7 +56,9 @@ typedef struct {
   intptr_t progress_port_id;
 
   intptr_t callback_port_id;
+  intptr_t file_metadata_port_id;
 
+  write_state write;
   read_state read;
   seekf_dart seek;
   Dart_Handle file;
@@ -70,7 +86,6 @@ int read_callback(void *ctx, uint8_t *bytes, int length) {
   context *_ctx = (context *)(ctx);
 
   _ctx->read.call_state.done = false;
-  _ctx->read.args.context = _ctx;
   _ctx->read.args.buffer = bytes;
   _ctx->read.args.length = length;
 
@@ -82,6 +97,25 @@ int read_callback(void *ctx, uint8_t *bytes, int length) {
   while (!_ctx->read.call_state.done)
     ;
   return _ctx->read.call_state.bytes_read;
+}
+
+void write_callback(void *ctx, uint8_t *bytes, int32_t length) {
+  debugf("Calling write_callback with ctx:%p, bytes:%p, length:%d", ctx, bytes,
+         length);
+
+  context *_ctx = (context *)(ctx);
+
+  _ctx->write.call_state.done = false;
+  _ctx->write.args.buffer = bytes;
+  _ctx->write.args.length = length;
+
+  if (!Dart_PostInteger_DL(_ctx->write.write_args_port,
+                           (int64_t)(&(_ctx->write.args)))) {
+    debugmsg("Failed to send write call args to dart");
+  }
+
+  while (!_ctx->write.call_state.done)
+    ;
 }
 
 int64_t seek_callback(void *ctx, int64_t offset, int whence) {
@@ -98,6 +132,11 @@ void read_done(void *ctx, int64_t length) {
   _ctx->read.call_state.done = true;
 }
 
+void write_done(void *ctx) {
+  context *_ctx = (context *)ctx;
+  _ctx->write.call_state.done = true;
+}
+
 bool entrypoint_is(context *ctx, const char *other) {
   return strcmp(ctx->entrypoint, other) == 0;
 }
@@ -108,6 +147,13 @@ void async_callback(void *ptr, result_t *result) {
 
 void update_progress_callback(void *ptr, progress_t *progress) {
   DartSend(((context *)ptr)->progress_port_id, progress);
+}
+
+void set_file_metadata(void *ctx, file_metadata_t *fmd) {
+  debugf("Setting file metadata: length:%ld, file_name:%s, download_id:%d, "
+         "context:%p",
+         fmd->length, fmd->file_name, fmd->download_id, fmd->context);
+  DartSend(((context *)ctx)->file_metadata_port_id, fmd);
 }
 
 codegen_result_t *async_ClientSendText(uintptr_t client_id, char *msg,
@@ -137,6 +183,8 @@ codegen_result_t *async_ClientSendFile(uintptr_t client_id, char *file_name,
       .read.call_state.done = false,
       .seek = seek,
   };
+
+  ctx->read.args.context = ctx;
   return ClientSendFile(ctx, client_id, file_name, async_callback,
                         update_progress_callback, read_callback, seek_callback);
 }
@@ -152,13 +200,29 @@ int async_ClientRecvText(uintptr_t client_id, char *code,
 }
 
 int async_ClientRecvFile(uintptr_t client_id, char *code,
-                         intptr_t callback_port_id, intptr_t progress_port_id) {
+                         intptr_t callback_port_id, intptr_t progress_port_id,
+                         intptr_t fmd_port_id, intptr_t write_args_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
       .callback_port_id = callback_port_id,
       .entrypoint = RECV_FILE,
       .progress_port_id = progress_port_id,
+      .file_metadata_port_id = fmd_port_id,
+      .write.call_state.done = false,
+      .write.write_args_port = write_args_port_id,
   };
+
+  ctx->write.args.context = ctx;
+
   return ClientRecvFile((void *)(ctx), client_id, code, async_callback,
-                        update_progress_callback);
+                        update_progress_callback, set_file_metadata,
+                        write_callback);
+}
+
+void accept_download(void *ctx) {
+  return AcceptDownload(((context *)ctx)->write.download_id);
+}
+
+void reject_download(void *ctx) {
+  return RejectDownload(((context *)ctx)->write.download_id);
 }

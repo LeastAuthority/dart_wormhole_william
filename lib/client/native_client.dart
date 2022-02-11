@@ -51,11 +51,21 @@ typedef ClientRecvTextNative = Int32 Function(
 typedef ClientRecvText = int Function(
     int goClientId, Pointer<Utf8> code, int callbackPortId);
 
-typedef ClientRecvFileNative = Int32 Function(Uint32 goClientId,
-    Pointer<Utf8> code, Int32 callbackPortId, Int32 progressPortId);
+typedef ClientRecvFileNative = Int32 Function(
+    Uint32 goClientId,
+    Pointer<Utf8> code,
+    Int32 callbackPortId,
+    Int32 progressPortId,
+    Int32 fmdPortId,
+    Int32 writeBytesPortId);
 
 typedef ClientRecvFile = int Function(
-    int goClientId, Pointer<Utf8> code, int callbackPortId, int progressPortId);
+    int goClientId,
+    Pointer<Utf8> code,
+    int callbackPortId,
+    int progressPortId,
+    int fmdPortId,
+    int writeBytesPortId);
 
 typedef FreeResultNative = Void Function(Pointer<CallbackResult> result);
 typedef FreeResult = void Function(Pointer<CallbackResult> result);
@@ -67,8 +77,17 @@ typedef FreeCodegenResult = void Function(Pointer<CodeGenerationResult> result);
 typedef ReadDoneNative = Void Function(Pointer<Void>, Int64);
 typedef ReadDone = void Function(Pointer<Void>, int);
 
+typedef WriteDoneNative = Void Function(Pointer<Void>);
+typedef WriteDone = void Function(Pointer<Void>);
+
 typedef SeekNative = Int64 Function(Handle, Int64 offset, Int64 whence);
 typedef Seek = int Function(RandomAccessFile, int offset, int whence);
+
+typedef AcceptDownloadNative = Void Function(Pointer<Void>);
+typedef AcceptDownload = void Function(Pointer<Void>);
+
+typedef RejectDownloadNative = Void Function(Pointer<Void>);
+typedef RejectDownload = void Function(Pointer<Void>);
 
 class Config {
   final String appId;
@@ -134,9 +153,10 @@ class NativeClient {
     return _clientRecvText(_goClientId, code, callbackPortId);
   }
 
-  int clientRecvFile(
-      Pointer<Utf8> code, int callbackPortId, int progressPortId) {
-    return _clientRecvFile(_goClientId, code, callbackPortId, progressPortId);
+  int clientRecvFile(Pointer<Utf8> code, int callbackPortId, int progressPortId,
+      int fmdPortId, int writeBytesPortId) {
+    return _clientRecvFile(_goClientId, code, callbackPortId, progressPortId,
+        fmdPortId, writeBytesPortId);
   }
 
   void freeResult(int result) {
@@ -168,6 +188,36 @@ class NativeClient {
 
   void readDone(Pointer<Void> ctxPtr, int bytesRead) {
     _readDone(ctxPtr, bytesRead);
+  }
+
+  WriteDone get _writeDone {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<WriteDoneNative>>('write_done')
+        .asFunction();
+  }
+
+  void writeDone(Pointer<Void> ctx) {
+    _writeDone(ctx);
+  }
+
+  AcceptDownload get _acceptDownload {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<AcceptDownloadNative>>('accept_download')
+        .asFunction();
+  }
+
+  RejectDownload get _rejectDownload {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<RejectDownloadNative>>('reject_download')
+        .asFunction();
+  }
+
+  void acceptDownload(Pointer<Void> context) {
+    _acceptDownload(context);
+  }
+
+  void rejectDownload(Pointer<Void> context) {
+    _rejectDownload(context);
   }
 
   ClientRecvText get _clientRecvText {
