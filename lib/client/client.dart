@@ -254,11 +254,16 @@ class Client {
       ..listen((dynamic msg) async {
         if (msg is int) {
           Pointer<WriteArgs> args = Pointer.fromAddress(msg);
-          await destinationFile.future.then((sink) async {
-            sink.add(args.ref.buffer.asTypedList(args.ref.length));
-            await sink.flush();
-            _native.writeDone(args.ref.context);
-          });
+          try {
+            await destinationFile.future.then((sink) async {
+              sink.add(args.ref.buffer.asTypedList(args.ref.length));
+              await sink.flush();
+            });
+            _native.writeDone(args.ref.context, true);
+          } catch (error) {
+            print("Error writing bytes");
+            _native.writeDone(args.ref.context, false);
+          }
         }
       });
 

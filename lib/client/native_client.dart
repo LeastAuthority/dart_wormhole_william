@@ -77,8 +77,8 @@ typedef FreeCodegenResult = void Function(Pointer<CodeGenerationResult> result);
 typedef ReadDoneNative = Void Function(Pointer<Void>, Int64);
 typedef ReadDone = void Function(Pointer<Void>, int);
 
-typedef WriteDoneNative = Void Function(Pointer<Void>);
-typedef WriteDone = void Function(Pointer<Void>);
+typedef WriteDoneNative = Void Function(Pointer<Void>, Bool);
+typedef WriteDone = void Function(Pointer<Void>, bool);
 
 typedef SeekNative = Int64 Function(Handle, Int64 offset, Int64 whence);
 typedef Seek = int Function(RandomAccessFile, int offset, int whence);
@@ -196,8 +196,11 @@ class NativeClient {
         .asFunction();
   }
 
-  void writeDone(Pointer<Void> ctx) {
-    _writeDone(ctx);
+  // TODO send error details as well so they can be shown in
+  // the Future's result when the Go client has gracefully
+  // terminated the session
+  void writeDone(Pointer<Void> ctx, bool successful) {
+    _writeDone(ctx, successful);
   }
 
   AcceptDownload get _acceptDownload {
