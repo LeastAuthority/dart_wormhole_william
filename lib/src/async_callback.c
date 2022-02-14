@@ -46,7 +46,10 @@ typedef struct {
     int32_t length;
   } args;
 
-  volatile struct { bool done; } call_state;
+  volatile struct {
+    bool done;
+    bool successful;
+  } call_state;
 } write_state;
 
 typedef struct {
@@ -76,7 +79,7 @@ intptr_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
     Dart_CObject response = (Dart_CObject){                                    \
         .type = Dart_CObject_kInt64, .value.as_int64 = (int64_t)(message)};    \
     if (!Dart_PostCObject_DL(port, &response)) {                               \
-      debugf("Sending message %p to port %d failed", message, port);           \
+      debugf("Sending message %p to port %ld failed", message, port);          \
     }                                                                          \
   }
 
@@ -99,7 +102,7 @@ int read_callback(void *ctx, uint8_t *bytes, int length) {
   return _ctx->read.call_state.bytes_read;
 }
 
-void write_callback(void *ctx, uint8_t *bytes, int32_t length) {
+int write_callback(void *ctx, uint8_t *bytes, int32_t length) {
   debugf("Calling write_callback with ctx:%p, bytes:%p, length:%d", ctx, bytes,
          length);
 
@@ -116,11 +119,13 @@ void write_callback(void *ctx, uint8_t *bytes, int32_t length) {
 
   while (!_ctx->write.call_state.done)
     ;
+
+  return _ctx->write.call_state.successful;
 }
 
 int64_t seek_callback(void *ctx, int64_t offset, int whence) {
-  debugf("Calling seek_callback with ctx:%p, offset:%d, whence:%d", ctx, offset,
-         whence);
+  debugf("Calling seek_callback with ctx:%p, offset:%ld, whence:%d", ctx,
+         offset, whence);
   context *_ctx = (context *)(ctx);
 
   return _ctx->seek(_ctx->file, offset, whence);
@@ -132,8 +137,9 @@ void read_done(void *ctx, int64_t length) {
   _ctx->read.call_state.done = true;
 }
 
-void write_done(void *ctx) {
+void write_done(void *ctx, bool successful) {
   context *_ctx = (context *)ctx;
+  _ctx->write.call_state.successful = successful;
   _ctx->write.call_state.done = true;
 }
 
