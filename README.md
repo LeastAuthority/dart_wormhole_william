@@ -35,3 +35,12 @@ download.done.then((result) {
 
 Currently this plugin is only buildable as part of the build for this
 [app](https://github.com/LeastAuthority/flutter_wormhole_gui).
+
+## Known Issues
+
+Dart does not support callbacks from `wormhole-william` from multiple threads. The
+plugin implements function calls by sending the arguments to a
+[Dart send port](https://api.dart.dev/stable/2.16.1/dart-isolate/SendPort-class.html) and handling
+the messages to resolve on Dart. The C stack is kept in a busy loop until the
+dart function is completed. Once [this issue](https://github.com/dart-lang/sdk/issues/37022)
+is resolved, we can cleanup that code to be much simpler and less error prone.
