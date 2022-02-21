@@ -71,7 +71,7 @@ extension ResultHandling<T> on Completer<T> {
 class Client {
   late NativeClient _native;
 
-  Client({Config? config}) {
+  Client(Config config) {
     _native = NativeClient(config: config);
   }
 
