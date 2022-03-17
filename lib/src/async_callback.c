@@ -21,7 +21,7 @@
 typedef int64_t (*seekf_dart)(Dart_Handle, int64_t, int32_t whence);
 
 typedef struct {
-  intptr_t read_args_port;
+  int64_t read_args_port;
 
   struct {
     void *context;
@@ -36,7 +36,7 @@ typedef struct {
 } read_state;
 
 typedef struct {
-  intptr_t write_args_port;
+  int64_t write_args_port;
 
   int32_t download_id;
 
@@ -56,10 +56,10 @@ typedef struct {
   const char *entrypoint;
   const void *logging_context;
 
-  intptr_t progress_port_id;
+  int64_t progress_port_id;
 
-  intptr_t callback_port_id;
-  intptr_t file_metadata_port_id;
+  int64_t callback_port_id;
+  int64_t file_metadata_port_id;
 
   write_state write;
   read_state read;
@@ -72,7 +72,7 @@ const char *RECV_TEXT = "context/recv_text";
 const char *SEND_FILE = "context/send_file";
 const char *RECV_FILE = "context/recv_file";
 
-intptr_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
+int64_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
 
 #define DartSend(port, message)                                                \
   {                                                                            \
@@ -80,6 +80,7 @@ intptr_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
         .type = Dart_CObject_kInt64, .value.as_int64 = (int64_t)(message)};    \
     if (!Dart_PostCObject_DL(port, &response)) {                               \
       debugf("Sending message %p to port %ld failed", message, port);          \
+      abort();                                                                 \
     }                                                                          \
   }
 
@@ -95,6 +96,7 @@ int read_callback(void *ctx, uint8_t *bytes, int length) {
   if (!Dart_PostInteger_DL(_ctx->read.read_args_port,
                            (int64_t)(&(_ctx->read.args)))) {
     debugmsg("Failed to send read call args to dart");
+    abort();
   }
 
   while (!_ctx->read.call_state.done)
@@ -163,7 +165,7 @@ void set_file_metadata(void *ctx, file_metadata_t *fmd) {
 }
 
 codegen_result_t *async_ClientSendText(uintptr_t client_id, char *msg,
-                                       intptr_t callback_port_id) {
+                                       int64_t callback_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
       .callback_port_id = callback_port_id,
@@ -174,10 +176,9 @@ codegen_result_t *async_ClientSendText(uintptr_t client_id, char *msg,
 
 // TODO: factor `file_name`, `lenght`, and `file_bytes` out to a struct.
 codegen_result_t *async_ClientSendFile(uintptr_t client_id, char *file_name,
-                                       intptr_t callback_port_id,
-                                       intptr_t progress_port_id,
-                                       Dart_Handle file,
-                                       intptr_t read_args_port,
+                                       int64_t callback_port_id,
+                                       int64_t progress_port_id,
+                                       Dart_Handle file, int64_t read_args_port,
                                        seekf_dart seek) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
@@ -196,7 +197,7 @@ codegen_result_t *async_ClientSendFile(uintptr_t client_id, char *file_name,
 }
 
 int async_ClientRecvText(uintptr_t client_id, char *code,
-                         intptr_t callback_port_id) {
+                         int64_t callback_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
       .callback_port_id = callback_port_id,
@@ -206,8 +207,8 @@ int async_ClientRecvText(uintptr_t client_id, char *code,
 }
 
 int async_ClientRecvFile(uintptr_t client_id, char *code,
-                         intptr_t callback_port_id, intptr_t progress_port_id,
-                         intptr_t fmd_port_id, intptr_t write_args_port_id) {
+                         int64_t callback_port_id, int64_t progress_port_id,
+                         int64_t fmd_port_id, int64_t write_args_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
       .callback_port_id = callback_port_id,
