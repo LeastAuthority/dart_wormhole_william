@@ -22,18 +22,18 @@ typedef NewClient = int Function(
     int passPhraseComponentLength);
 
 typedef ClientSendTextNative = Pointer<CodeGenerationResult> Function(
-    Uint32 goClientId, Pointer<Utf8> msg, Int32 callbackPortId);
+    IntPtr goClientId, Pointer<Utf8> msg, Int64 callbackPortId);
 
 typedef ClientSendText = Pointer<CodeGenerationResult> Function(
     int goClientId, Pointer<Utf8> msg, int callbackPortId);
 
 typedef ClientSendFileNative = Pointer<CodeGenerationResult> Function(
-    Uint32 goClientId,
+    IntPtr goClientId,
     Pointer<Utf8> fileName,
-    Int32 callbackPortId,
-    Int32 progressPortId,
+    Int64 callbackPortId,
+    Int64 progressPortId,
     Handle file,
-    Int32 readArgsPort,
+    Int64 readArgsPort,
     Pointer<NativeFunction<SeekNative>> seekHandle);
 
 typedef ClientSendFile = Pointer<CodeGenerationResult> Function(
@@ -46,18 +46,18 @@ typedef ClientSendFile = Pointer<CodeGenerationResult> Function(
     Pointer<NativeFunction<SeekNative>> seek);
 
 typedef ClientRecvTextNative = Int32 Function(
-    Uint32 goClientId, Pointer<Utf8> code, Int32 callbackPortId);
+    IntPtr goClientId, Pointer<Utf8> code, Int64 callbackPortId);
 
 typedef ClientRecvText = int Function(
     int goClientId, Pointer<Utf8> code, int callbackPortId);
 
 typedef ClientRecvFileNative = Int32 Function(
-    Uint32 goClientId,
+    IntPtr goClientId,
     Pointer<Utf8> code,
-    Int32 callbackPortId,
-    Int32 progressPortId,
-    Int32 fmdPortId,
-    Int32 writeBytesPortId);
+    Int64 callbackPortId,
+    Int64 progressPortId,
+    Int64 fmdPortId,
+    Int64 writeBytesPortId);
 
 typedef ClientRecvFile = int Function(
     int goClientId,
@@ -113,8 +113,7 @@ class NativeClient {
   late final _goClientId;
 
   NativeClient({Config? config}) {
-    _wormholeWilliamLib =
-        DynamicLibrary.open(libName("dart_wormhole_william_plugin"));
+    _wormholeWilliamLib = DynamicLibrary.open(libName("wormhole_william"));
     _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
     _initDartApi(NativeApi.initializeApiDLData);
 
@@ -242,13 +241,13 @@ class NativeClient {
   }
 
   FreeResult get _freeResult {
-    return _asyncCallbackLib
+    return _wormholeWilliamLib
         .lookup<NativeFunction<FreeResultNative>>('free_result')
         .asFunction();
   }
 
   FreeCodegenResult get _freeCodegenResult {
-    return _asyncCallbackLib
+    return _wormholeWilliamLib
         .lookup<NativeFunction<FreeCodegenResultNative>>('free_codegen_result')
         .asFunction();
   }
@@ -259,7 +258,7 @@ class NativeClient {
     if (Platform.isMacOS) {
       baseName = "lib$libraryName.dylib";
     } else if (Platform.isWindows) {
-      baseName = "lib$libraryName.dll";
+      baseName = "$libraryName.dll";
     } else {
       baseName = "lib$libraryName.so";
     }

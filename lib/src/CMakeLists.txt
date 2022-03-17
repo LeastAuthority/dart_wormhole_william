@@ -1,12 +1,14 @@
-if(NOT DEFINED ENV{FLUTTER_HOME})
-  message(FATAL_ERROR "FLUTTER_HOME environment variable must be defined")
+if(NOT DEFINED ENV{FLUTTER_ROOT})
+  message(FATAL_ERROR "FLUTTER_ROOT environment variable must be defined")
+else()
+  file(TO_CMAKE_PATH $ENV{FLUTTER_ROOT} FLUTTER_ROOT)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 	add_compile_options("-DDESTINY_DEBUG_LOGS")
 endif()
 
-set(DART_INCLUDE $ENV{FLUTTER_HOME}/bin/cache/dart-sdk/include)
+set(DART_INCLUDE ${FLUTTER_ROOT}/bin/cache/dart-sdk/include)
 
 add_library(
   bindings SHARED ${DART_WORMHOLE_WILLIAM_C_DIR}/async_callback.c
