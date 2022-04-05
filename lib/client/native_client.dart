@@ -1,6 +1,5 @@
 import 'dart:ffi';
 import 'dart:io' show Platform, RandomAccessFile;
-import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -88,6 +87,9 @@ typedef AcceptDownload = void Function(Pointer<Void>);
 
 typedef RejectDownloadNative = Void Function(Pointer<Void>);
 typedef RejectDownload = void Function(Pointer<Void>);
+
+typedef CancelTransferNative = Void Function(Pointer<Void>);
+typedef CancelTransfer = void Function(Pointer<Void>);
 
 class Config {
   final String appId;
@@ -214,12 +216,22 @@ class NativeClient {
         .asFunction();
   }
 
+  CancelTransfer get _cancelTransfer {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<CancelTransferNative>>('cancel_transfer')
+        .asFunction();
+  }
+
   void acceptDownload(Pointer<Void> context) {
     _acceptDownload(context);
   }
 
   void rejectDownload(Pointer<Void> context) {
     _rejectDownload(context);
+  }
+
+  void cancelTransfer(Pointer<Void> context) {
+    _cancelTransfer(context);
   }
 
   ClientRecvText get _clientRecvText {

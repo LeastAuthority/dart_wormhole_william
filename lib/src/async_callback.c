@@ -58,8 +58,10 @@ typedef struct {
 
   int64_t progress_port_id;
 
-  int64_t callback_port_id;
+  int64_t result_port_id;
   int64_t file_metadata_port_id;
+
+  int32_t transfer_id;
 
   write_state write;
   read_state read;
@@ -150,7 +152,7 @@ bool entrypoint_is(context *ctx, const char *other) {
 }
 
 void async_callback(void *ptr, result_t *result) {
-  DartSend(((context *)ptr)->callback_port_id, result);
+  DartSend(((context *)ptr)->result_port_id, result);
 }
 
 void update_progress_callback(void *ptr, progress_t *progress) {
@@ -161,14 +163,16 @@ void set_file_metadata(void *ctx, file_metadata_t *fmd) {
   debugf("Setting file metadata: length:%ld, file_name:%s, download_id:%d, "
          "context:%p",
          fmd->length, fmd->file_name, fmd->download_id, fmd->context);
+  ((context *)ctx)->transfer_id = fmd->download_id;
+  fmd->context = ctx;
   DartSend(((context *)ctx)->file_metadata_port_id, fmd);
 }
 
 codegen_result_t *async_ClientSendText(uintptr_t client_id, char *msg,
-                                       int64_t callback_port_id) {
+                                       int64_t result_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
-      .callback_port_id = callback_port_id,
+      .result_port_id = result_port_id,
       .entrypoint = SEND_TEXT,
   };
   return ClientSendText(ctx, client_id, msg, async_callback);
@@ -176,13 +180,13 @@ codegen_result_t *async_ClientSendText(uintptr_t client_id, char *msg,
 
 // TODO: factor `file_name`, `lenght`, and `file_bytes` out to a struct.
 codegen_result_t *async_ClientSendFile(uintptr_t client_id, char *file_name,
-                                       int64_t callback_port_id,
+                                       int64_t result_port_id,
                                        int64_t progress_port_id,
                                        Dart_Handle file, int64_t read_args_port,
                                        seekf_dart seek) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
-      .callback_port_id = callback_port_id,
+      .result_port_id = result_port_id,
       .entrypoint = SEND_FILE,
       .progress_port_id = progress_port_id,
       .file = file,
@@ -192,26 +196,29 @@ codegen_result_t *async_ClientSendFile(uintptr_t client_id, char *file_name,
   };
 
   ctx->read.args.context = ctx;
-  return ClientSendFile(ctx, client_id, file_name, async_callback,
-                        update_progress_callback, read_callback, seek_callback);
+  codegen_result_t *result =
+      ClientSendFile(ctx, client_id, file_name, async_callback,
+                     update_progress_callback, read_callback, seek_callback);
+  ctx->transfer_id = result->generated.transfer_id;
+  return result;
 }
 
 int async_ClientRecvText(uintptr_t client_id, char *code,
-                         int64_t callback_port_id) {
+                         int64_t result_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
-      .callback_port_id = callback_port_id,
+      .result_port_id = result_port_id,
       .entrypoint = RECV_TEXT,
   };
   return ClientRecvText((void *)(ctx), client_id, code, async_callback);
 }
 
 int async_ClientRecvFile(uintptr_t client_id, char *code,
-                         int64_t callback_port_id, int64_t progress_port_id,
+                         int64_t result_port_id, int64_t progress_port_id,
                          int64_t fmd_port_id, int64_t write_args_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
-      .callback_port_id = callback_port_id,
+      .result_port_id = result_port_id,
       .entrypoint = RECV_FILE,
       .progress_port_id = progress_port_id,
       .file_metadata_port_id = fmd_port_id,
@@ -232,4 +239,8 @@ void accept_download(void *ctx) {
 
 void reject_download(void *ctx) {
   return RejectDownload(((context *)ctx)->write.download_id);
+}
+
+void cancel_transfer(void *ctx) {
+  return CancelTransfer(((context *)ctx)->transfer_id);
 }
