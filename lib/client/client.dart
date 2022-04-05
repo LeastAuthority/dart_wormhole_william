@@ -10,17 +10,20 @@ import 'package:path/path.dart' as path;
 import 'c_structs.dart';
 import 'native_client.dart';
 
+typedef CancelFunc = void Function();
+
 class SendResult {
   String code;
   Future<CallbackResult> done;
+  CancelFunc cancel;
 
-  SendResult(this.code, this.done);
+  SendResult(this.code, this.done, this.cancel);
 }
 
 class PendingDownload {
   int size;
   String fileName;
-  void Function(File) accept;
+  CancelFunc Function(File) accept;
   void Function() reject;
 
   PendingDownload(this.size, this.fileName, this.accept, this.reject);
@@ -89,12 +92,15 @@ class Client {
         _native.clientSendText(msg.toNativeUtf8(), rxPort.sendPort.nativePort);
 
     try {
-      if (codeGenResult.ref.errorCode != 0) {
+      if (codeGenResult.ref.resultType != 0) {
         throw Exception(
-            'Failed to send text. Error code: ${codeGenResult.ref.errorCode}, Error: ${codeGenResult.ref.errorString}');
+            'Failed to send text. Error code: ${codeGenResult.ref.resultType}, Error: ${codeGenResult.ref.error.errorString.toDartString()}');
       }
 
-      return SendResult(codeGenResult.ref.code.toDartString(), done.future);
+      return SendResult(
+          codeGenResult.ref.generated.code.toDartString(), done.future, () {
+        _native.cancelTransfer(codeGenResult.ref.context);
+      });
     } finally {
       _native.freeCodegenResult(codeGenResult.address);
     }
@@ -197,12 +203,17 @@ class Client {
         Pointer.fromFunction<SeekNative>(seekf, 0));
 
     try {
-      if (codeGenResult.ref.errorCode != 0) {
+      if (codeGenResult.ref.resultType != 0) {
         return Future.error(ClientError(
-            codeGenResult.ref.errorString.toDartString(),
-            codeGenResult.ref.errorCode));
+            codeGenResult.ref.error.errorString.toDartString(),
+            codeGenResult.ref.resultType));
       } else {
-        return SendResult(codeGenResult.ref.code.toDartString(), done.future);
+        Pointer<Void> context = codeGenResult.ref.context;
+
+        return SendResult(
+            codeGenResult.ref.generated.code.toDartString(), done.future, () {
+          _native.cancelTransfer(context);
+        });
       }
     } finally {
       _native.freeCodegenResult(codeGenResult.address);
@@ -210,11 +221,11 @@ class Client {
   }
 
   Future<ReceiveFileResult> recvFile(String code,
-      [void Function(dynamic) optProgressFunc = defaultProgressHandler]) async {
+      [void Function(dynamic) optProgressFunc = defaultProgressHandler]) {
     final done = Completer<CallbackResult>();
     final destinationFile = Completer<IOSink>();
 
-    final rxPort = ReceivePort()
+    final resultPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, _native, (callbackResult) {
           destinationFile.future.then((file) {
@@ -241,6 +252,10 @@ class Client {
             destinationFile
                 .complete(destination.openWrite(mode: FileMode.append));
             _native.acceptDownload(received.ref.context);
+            Pointer<Void> context = received.ref.context;
+            return () {
+              _native.cancelTransfer(context);
+            };
           }, () {
             // TODO proper error here
             destinationFile
@@ -269,14 +284,14 @@ class Client {
 
     final int errCode = _native.clientRecvFile(
         code.toNativeUtf8(),
-        rxPort.sendPort.nativePort,
+        resultPort.sendPort.nativePort,
         progressPort.sendPort.nativePort,
         metadataPort.sendPort.nativePort,
         writeBytesPort.sendPort.nativePort);
 
     if (errCode != 0) {
       // TODO: Create exception implementation(s).
-      throw Exception('Failed to send text. Error code: $errCode');
+      return Future.error(ClientError("Failed to receive file", errCode));
     }
 
     return pendingDownload.future.then((metadata) {

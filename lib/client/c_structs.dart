@@ -10,11 +10,22 @@ class CallbackResult extends Struct {
   external Pointer<Utf8> receivedText;
 }
 
+class Error extends Struct {
+  external Pointer<Utf8> errorString;
+}
+
+class CodeGenerated extends Struct {
+  external Pointer<Utf8> code;
+  @Int32()
+  external int transferId;
+}
+
 class CodeGenerationResult extends Struct {
   @Int32()
-  external int errorCode;
-  external Pointer<Utf8> errorString;
-  external Pointer<Utf8> code;
+  external int resultType;
+  external Pointer<Void> context;
+  external Error error;
+  external CodeGenerated generated;
 }
 
 class Progress extends Struct {
