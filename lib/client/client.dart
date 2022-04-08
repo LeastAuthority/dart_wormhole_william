@@ -62,7 +62,7 @@ extension ResultHandling<T> on Completer<T> {
       }
 
       this.future.whenComplete(() {
-        nativeClient.freeResult(result);
+        nativeClient.finalize(nativeClient.clientId);
       });
     } else {
       this.completeError(
@@ -257,9 +257,6 @@ class Client {
               _native.cancelTransfer(context);
             };
           }, () {
-            // TODO proper error here
-            destinationFile
-                .completeError(ClientError("Transfer rejected", 123));
             _native.rejectDownload(received.ref.context);
           }));
         }
