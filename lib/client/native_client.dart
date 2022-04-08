@@ -5,6 +5,14 @@ import 'package:ffi/ffi.dart';
 
 import 'c_structs.dart';
 
+const ErrCodeSuccess = 0;
+const ErrCodeSendFileError = 1;
+const ErrCodeReceiveFileError = 2;
+const ErrCodeSendTextError = 3;
+const ErrCodeReceiveTextError = 4;
+const ErrCodeTransferRejected = 5;
+const ErrCodeTransferCancelled = 6;
+
 typedef InitDartApiNative = IntPtr Function(Pointer<Void>);
 typedef InitDartApi = int Function(Pointer<Void>);
 
@@ -51,7 +59,7 @@ typedef ClientRecvText = int Function(
     int goClientId, Pointer<Utf8> code, int callbackPortId);
 
 typedef ClientRecvFileNative = Int32 Function(
-    IntPtr goClientId,
+    Int32 goClientId,
     Pointer<Utf8> code,
     Int64 callbackPortId,
     Int64 progressPortId,
@@ -91,6 +99,9 @@ typedef RejectDownload = void Function(Pointer<Void>);
 typedef CancelTransferNative = Void Function(Pointer<Void>);
 typedef CancelTransfer = void Function(Pointer<Void>);
 
+typedef FinalizeNative = Int32 Function(Int32);
+typedef Finalize = int Function(int);
+
 class Config {
   final String appId;
   final String rendezvousUrl;
@@ -127,6 +138,8 @@ class NativeClient {
         effectiveConfig.transitRelayUrl.toNativeUtf8(),
         effectiveConfig.passPhraseComponentLength);
   }
+
+  int get clientId => _goClientId;
 
   NewClient get _newClient {
     return _wormholeWilliamLib
@@ -166,6 +179,16 @@ class NativeClient {
 
   void freeCodegenResult(int codegenResult) {
     _freeCodegenResult(Pointer.fromAddress(codegenResult));
+  }
+
+  Finalize get _finalize {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<FinalizeNative>>('finalize')
+        .asFunction();
+  }
+
+  void finalize(int clientId) {
+    _finalize(clientId);
   }
 
   // -- getters for wrapping native functions in dart --//

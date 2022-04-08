@@ -54,10 +54,8 @@ typedef struct {
 
 typedef struct {
   const char *entrypoint;
-  const void *logging_context;
 
   int64_t progress_port_id;
-
   int64_t result_port_id;
   int64_t file_metadata_port_id;
 
@@ -68,6 +66,8 @@ typedef struct {
   seekf_dart seek;
   Dart_Handle file;
 } context;
+
+typedef int32_t client_id_t;
 
 const char *SEND_TEXT = "context/send_text";
 const char *RECV_TEXT = "context/recv_text";
@@ -87,19 +87,13 @@ int64_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
   }
 
 int read_callback(void *ctx, uint8_t *bytes, int length) {
-  debugf("Calling read_callback with ctx:%p, bytes:%p, length:%d", ctx, bytes,
-         length);
   context *_ctx = (context *)(ctx);
 
   _ctx->read.call_state.done = false;
   _ctx->read.args.buffer = bytes;
   _ctx->read.args.length = length;
 
-  if (!Dart_PostInteger_DL(_ctx->read.read_args_port,
-                           (int64_t)(&(_ctx->read.args)))) {
-    debugmsg("Failed to send read call args to dart");
-    abort();
-  }
+  DartSend(_ctx->read.read_args_port, &(_ctx->read.args));
 
   while (!_ctx->read.call_state.done)
     ;
@@ -107,19 +101,13 @@ int read_callback(void *ctx, uint8_t *bytes, int length) {
 }
 
 int write_callback(void *ctx, uint8_t *bytes, int32_t length) {
-  debugf("Calling write_callback with ctx:%p, bytes:%p, length:%d", ctx, bytes,
-         length);
-
   context *_ctx = (context *)(ctx);
 
   _ctx->write.call_state.done = false;
   _ctx->write.args.buffer = bytes;
   _ctx->write.args.length = length;
 
-  if (!Dart_PostInteger_DL(_ctx->write.write_args_port,
-                           (int64_t)(&(_ctx->write.args)))) {
-    debugmsg("Failed to send write call args to dart");
-  }
+  DartSend(_ctx->write.write_args_port, &(_ctx->write.args));
 
   while (!_ctx->write.call_state.done)
     ;
@@ -128,8 +116,6 @@ int write_callback(void *ctx, uint8_t *bytes, int32_t length) {
 }
 
 int64_t seek_callback(void *ctx, int64_t offset, int whence) {
-  debugf("Calling seek_callback with ctx:%p, offset:%ld, whence:%d", ctx,
-         offset, whence);
   context *_ctx = (context *)(ctx);
 
   return _ctx->seek(_ctx->file, offset, whence);
@@ -159,6 +145,10 @@ void update_progress_callback(void *ptr, progress_t *progress) {
   DartSend(((context *)ptr)->progress_port_id, progress);
 }
 
+void log_callback(void *context, char *msg) {
+  debugf("wormhole-william:ctx:%p: %s", context, msg);
+}
+
 void set_file_metadata(void *ctx, file_metadata_t *fmd) {
   debugf("Setting file metadata: length:%ld, file_name:%s, download_id:%d, "
          "context:%p",
@@ -168,23 +158,49 @@ void set_file_metadata(void *ctx, file_metadata_t *fmd) {
   DartSend(((context *)ctx)->file_metadata_port_id, fmd);
 }
 
-codegen_result_t *async_ClientSendText(uintptr_t client_id, char *msg,
+void free_context(context *ctx) {
+  if (ctx != NULL) {
+    free(ctx);
+  }
+}
+
+wrapped_context_t *new_wrapped_context(client_context_t clientCtx,
+                                       int32_t go_client_id) {
+  wrapped_context_t *wctx =
+      (wrapped_context_t *)(calloc(1, sizeof(wrapped_context_t)));
+  *wctx =
+      (wrapped_context_t){.clientCtx = clientCtx,
+                          .go_client_id = go_client_id,
+                          .impl = {.notify = async_callback,
+                                   .update_progress = update_progress_callback,
+                                   .update_metadata = set_file_metadata,
+                                   .log = log_callback,
+                                   .write = write_callback,
+                                   .seek = seek_callback,
+                                   .read = read_callback,
+                                   .free_client_ctx = free_context}};
+  return wctx;
+}
+
+codegen_result_t *async_ClientSendText(client_id_t client_id, char *msg,
                                        int64_t result_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
       .result_port_id = result_port_id,
       .entrypoint = SEND_TEXT,
   };
-  return ClientSendText(ctx, client_id, msg, async_callback);
+
+  wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
+
+  return ClientSendText(wctx, msg);
 }
 
-// TODO: factor `file_name`, `lenght`, and `file_bytes` out to a struct.
-codegen_result_t *async_ClientSendFile(uintptr_t client_id, char *file_name,
+codegen_result_t *async_ClientSendFile(client_id_t client_id, char *file_name,
                                        int64_t result_port_id,
                                        int64_t progress_port_id,
                                        Dart_Handle file, int64_t read_args_port,
                                        seekf_dart seek) {
-  context *ctx = (context *)(malloc(sizeof(context)));
+  context *ctx = (context *)(calloc(1, sizeof(context)));
   *ctx = (context){
       .result_port_id = result_port_id,
       .entrypoint = SEND_FILE,
@@ -196,27 +212,29 @@ codegen_result_t *async_ClientSendFile(uintptr_t client_id, char *file_name,
   };
 
   ctx->read.args.context = ctx;
-  codegen_result_t *result =
-      ClientSendFile(ctx, client_id, file_name, async_callback,
-                     update_progress_callback, read_callback, seek_callback);
+  wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
+  codegen_result_t *result = ClientSendFile(wctx, file_name);
   ctx->transfer_id = result->generated.transfer_id;
   return result;
 }
 
-int async_ClientRecvText(uintptr_t client_id, char *code,
+int async_ClientRecvText(client_id_t client_id, char *code,
                          int64_t result_port_id) {
-  context *ctx = (context *)(malloc(sizeof(context)));
+  context *ctx = (context *)(calloc(1, sizeof(context)));
   *ctx = (context){
       .result_port_id = result_port_id,
       .entrypoint = RECV_TEXT,
   };
-  return ClientRecvText((void *)(ctx), client_id, code, async_callback);
+
+  wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
+
+  return ClientRecvText(wctx, code);
 }
 
-int async_ClientRecvFile(uintptr_t client_id, char *code,
+int async_ClientRecvFile(client_id_t client_id, char *code,
                          int64_t result_port_id, int64_t progress_port_id,
                          int64_t fmd_port_id, int64_t write_args_port_id) {
-  context *ctx = (context *)(malloc(sizeof(context)));
+  context *ctx = (context *)(calloc(1, sizeof(context)));
   *ctx = (context){
       .result_port_id = result_port_id,
       .entrypoint = RECV_FILE,
@@ -228,9 +246,9 @@ int async_ClientRecvFile(uintptr_t client_id, char *code,
 
   ctx->write.args.context = ctx;
 
-  return ClientRecvFile((void *)(ctx), client_id, code, async_callback,
-                        update_progress_callback, set_file_metadata,
-                        write_callback);
+  wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
+
+  return ClientRecvFile(wctx, code);
 }
 
 void accept_download(void *ctx) {
@@ -244,3 +262,5 @@ void reject_download(void *ctx) {
 void cancel_transfer(void *ctx) {
   return CancelTransfer(((context *)ctx)->transfer_id);
 }
+
+int32_t finalize(int32_t clientId) { return Finalize(clientId); }
