@@ -36,6 +36,14 @@ class Progress extends Struct {
   external int totalBytes;
 }
 
+class SeekArgs extends Struct {
+  external Pointer<Void> context;
+  @Int64()
+  external int newOffset;
+  @Int32()
+  external int whence;
+}
+
 class ReadArgs extends Struct {
   external Pointer<Void> context;
   external Pointer<Uint8> buffer;

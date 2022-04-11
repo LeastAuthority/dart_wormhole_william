@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:path/path.dart' as path;
@@ -136,7 +135,6 @@ class Client {
   }
 
   static int seekf(RandomAccessFile openFile, int offset, int whence) {
-    print("Seek from dart called with offset:$offset, whence:$whence");
     const SeekStart = 0;
     const SeekCurrent = 1;
     const SeekEnd = 2;
@@ -144,8 +142,6 @@ class Client {
     final position = openFile.positionSync();
     final int length = openFile.lengthSync();
     var newPosition;
-
-    print("Length of file is: $length. Current position is: $position");
 
     switch (whence) {
       case SeekStart:
@@ -187,37 +183,61 @@ class Client {
       ..listen((dynamic message) {
         if (message is int) {
           Pointer<ReadArgs> args = Pointer.fromAddress(message);
-          _native.readDone(
-              args.ref.context,
-              openFile
-                  .readIntoSync(args.ref.buffer.asTypedList(args.ref.length)));
+          try {
+            final bytesRead = openFile
+                .readIntoSync(args.ref.buffer.asTypedList(args.ref.length));
+            _native.readDone(args.ref.context, bytesRead, null);
+          } catch (error) {
+            _native.readDone(args.ref.context, -1, error.toString());
+          }
         }
       });
 
-    final codeGenResult = _native.clientSendFile(
+    final seekCalls = ReceivePort()
+      ..listen((dynamic message) {
+        if (message is int) {
+          Pointer<SeekArgs> args = Pointer.fromAddress(message);
+          try {
+            final newOffset =
+                seekf(openFile, args.ref.newOffset, args.ref.whence);
+            _native.seekDone(args.ref.context, newOffset, null);
+          } catch (error) {
+            _native.seekDone(args.ref.context, -1, error.toString());
+          }
+        } else {
+          throw Exception("Invalid message sent on seek arguments port");
+        }
+      });
+
+    final sendResult = Completer<SendResult>();
+
+    final codeGenerationResult = ReceivePort()
+      ..listen((dynamic message) async {
+        Pointer<CodeGenerationResult> codeGenResult =
+            Pointer.fromAddress(message);
+
+        if (codeGenResult.ref.resultType != 0) {
+          sendResult.completeError(ClientError(
+              codeGenResult.ref.error.errorString.toDartString(),
+              codeGenResult.ref.resultType));
+        } else {
+          Pointer<Void> context = codeGenResult.ref.context;
+
+          sendResult.complete(SendResult(
+              codeGenResult.ref.generated.code.toDartString(), done.future, () {
+            _native.cancelTransfer(context);
+          }));
+        }
+      });
+
+    _native.clientSendFile(
         fileName.toNativeUtf8(),
+        codeGenerationResult.sendPort.nativePort,
         rxPort.sendPort.nativePort,
         progressPort.sendPort.nativePort,
-        openFile,
         readCalls.sendPort.nativePort,
-        Pointer.fromFunction<SeekNative>(seekf, 0));
-
-    try {
-      if (codeGenResult.ref.resultType != 0) {
-        return Future.error(ClientError(
-            codeGenResult.ref.error.errorString.toDartString(),
-            codeGenResult.ref.resultType));
-      } else {
-        Pointer<Void> context = codeGenResult.ref.context;
-
-        return SendResult(
-            codeGenResult.ref.generated.code.toDartString(), done.future, () {
-          _native.cancelTransfer(context);
-        });
-      }
-    } finally {
-      _native.freeCodegenResult(codeGenResult.address);
-    }
+        seekCalls.sendPort.nativePort);
+    return sendResult.future;
   }
 
   Future<ReceiveFileResult> recvFile(String code,
@@ -271,25 +291,19 @@ class Client {
               sink.add(args.ref.buffer.asTypedList(args.ref.length));
               await sink.flush();
             });
-            _native.writeDone(args.ref.context, true);
+            _native.writeDone(args.ref.context, null);
           } catch (error) {
-            print("Error writing bytes");
-            _native.writeDone(args.ref.context, false);
+            _native.writeDone(args.ref.context, error.toString());
           }
         }
       });
 
-    final int errCode = _native.clientRecvFile(
+    _native.clientRecvFile(
         code.toNativeUtf8(),
         resultPort.sendPort.nativePort,
         progressPort.sendPort.nativePort,
         metadataPort.sendPort.nativePort,
         writeBytesPort.sendPort.nativePort);
-
-    if (errCode != 0) {
-      // TODO: Create exception implementation(s).
-      return Future.error(ClientError("Failed to receive file", errCode));
-    }
 
     return pendingDownload.future.then((metadata) {
       return ReceiveFileResult(metadata, done.future);

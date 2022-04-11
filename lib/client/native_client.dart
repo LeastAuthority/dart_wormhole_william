@@ -1,5 +1,5 @@
 import 'dart:ffi';
-import 'dart:io' show Platform, RandomAccessFile;
+import 'dart:io' show Platform;
 
 import 'package:ffi/ffi.dart';
 
@@ -34,23 +34,23 @@ typedef ClientSendTextNative = Pointer<CodeGenerationResult> Function(
 typedef ClientSendText = Pointer<CodeGenerationResult> Function(
     int goClientId, Pointer<Utf8> msg, int callbackPortId);
 
-typedef ClientSendFileNative = Pointer<CodeGenerationResult> Function(
-    IntPtr goClientId,
+typedef ClientSendFileNative = Void Function(
+    Int32 goClientId,
     Pointer<Utf8> fileName,
+    Int64 codegenResultPortId,
     Int64 callbackPortId,
     Int64 progressPortId,
-    Handle file,
     Int64 readArgsPort,
-    Pointer<NativeFunction<SeekNative>> seekHandle);
+    Int64 seekArgsPort);
 
-typedef ClientSendFile = Pointer<CodeGenerationResult> Function(
+typedef ClientSendFile = void Function(
     int goClientId,
     Pointer<Utf8> fileName,
+    int codegenResultPortId,
     int callbackPortId,
     int progressPortId,
-    RandomAccessFile file,
     int readArgsPort,
-    Pointer<NativeFunction<SeekNative>> seek);
+    int seekArgsPort);
 
 typedef ClientRecvTextNative = Int32 Function(
     IntPtr goClientId, Pointer<Utf8> code, Int64 callbackPortId);
@@ -58,7 +58,7 @@ typedef ClientRecvTextNative = Int32 Function(
 typedef ClientRecvText = int Function(
     int goClientId, Pointer<Utf8> code, int callbackPortId);
 
-typedef ClientRecvFileNative = Int32 Function(
+typedef ClientRecvFileNative = Void Function(
     Int32 goClientId,
     Pointer<Utf8> code,
     Int64 callbackPortId,
@@ -66,7 +66,7 @@ typedef ClientRecvFileNative = Int32 Function(
     Int64 fmdPortId,
     Int64 writeBytesPortId);
 
-typedef ClientRecvFile = int Function(
+typedef ClientRecvFile = void Function(
     int goClientId,
     Pointer<Utf8> code,
     int callbackPortId,
@@ -81,14 +81,14 @@ typedef FreeCodegenResultNative = Void Function(
     Pointer<CodeGenerationResult> result);
 typedef FreeCodegenResult = void Function(Pointer<CodeGenerationResult> result);
 
-typedef ReadDoneNative = Void Function(Pointer<Void>, Int64);
-typedef ReadDone = void Function(Pointer<Void>, int);
+typedef ReadDoneNative = Void Function(Pointer<Void>, Int64, Pointer<Utf8>);
+typedef ReadDone = void Function(Pointer<Void>, int, Pointer<Utf8>);
 
-typedef WriteDoneNative = Void Function(Pointer<Void>, Bool);
-typedef WriteDone = void Function(Pointer<Void>, bool);
+typedef WriteDoneNative = Void Function(Pointer<Void>, Pointer<Utf8>);
+typedef WriteDone = void Function(Pointer<Void>, Pointer<Utf8>);
 
-typedef SeekNative = Int64 Function(Handle, Int64 offset, Int64 whence);
-typedef Seek = int Function(RandomAccessFile, int offset, int whence);
+typedef SeekDoneNative = Void Function(Pointer<Void>, Int64, Pointer<Utf8>);
+typedef SeekDone = void Function(Pointer<Void>, int, Pointer<Utf8>);
 
 typedef AcceptDownloadNative = Void Function(Pointer<Void>);
 typedef AcceptDownload = void Function(Pointer<Void>);
@@ -152,24 +152,24 @@ class NativeClient {
     return _clientSendText(_goClientId, msg, callbackPortId);
   }
 
-  Pointer<CodeGenerationResult> clientSendFile(
+  void clientSendFile(
       Pointer<Utf8> fileName,
+      int codegenResultPortId,
       int callbackPortId,
       int progressPortId,
-      RandomAccessFile file,
       int readArgsPort,
-      Pointer<NativeFunction<SeekNative>> seek) {
-    return _clientSendFile(_goClientId, fileName, callbackPortId,
-        progressPortId, file, readArgsPort, seek);
+      int seekArgsPort) {
+    return _clientSendFile(_goClientId, fileName, codegenResultPortId,
+        callbackPortId, progressPortId, readArgsPort, seekArgsPort);
   }
 
   int clientRecvText(Pointer<Utf8> code, int callbackPortId) {
     return _clientRecvText(_goClientId, code, callbackPortId);
   }
 
-  int clientRecvFile(Pointer<Utf8> code, int callbackPortId, int progressPortId,
-      int fmdPortId, int writeBytesPortId) {
-    return _clientRecvFile(_goClientId, code, callbackPortId, progressPortId,
+  void clientRecvFile(Pointer<Utf8> code, int callbackPortId,
+      int progressPortId, int fmdPortId, int writeBytesPortId) {
+    _clientRecvFile(_goClientId, code, callbackPortId, progressPortId,
         fmdPortId, writeBytesPortId);
   }
 
@@ -204,14 +204,26 @@ class NativeClient {
         .asFunction();
   }
 
+  SeekDone get _seekDone {
+    return _asyncCallbackLib
+        .lookup<NativeFunction<SeekDoneNative>>('seek_done')
+        .asFunction();
+  }
+
+  void seekDone(Pointer<Void> ctxPtr, int currentOffset, String? errorMessage) {
+    _seekDone(ctxPtr, currentOffset,
+        errorMessage == null ? nullptr : errorMessage.toNativeUtf8());
+  }
+
   ReadDone get _readDone {
     return _asyncCallbackLib
         .lookup<NativeFunction<ReadDoneNative>>('read_done')
         .asFunction();
   }
 
-  void readDone(Pointer<Void> ctxPtr, int bytesRead) {
-    _readDone(ctxPtr, bytesRead);
+  void readDone(Pointer<Void> ctxPtr, int bytesRead, String? errorMessage) {
+    _readDone(ctxPtr, bytesRead,
+        errorMessage == null ? nullptr : errorMessage.toNativeUtf8());
   }
 
   WriteDone get _writeDone {
@@ -220,11 +232,9 @@ class NativeClient {
         .asFunction();
   }
 
-  // TODO send error details as well so they can be shown in
-  // the Future's result when the Go client has gracefully
-  // terminated the session
-  void writeDone(Pointer<Void> ctx, bool successful) {
-    _writeDone(ctx, successful);
+  void writeDone(Pointer<Void> ctx, String? errorMessage) {
+    _writeDone(
+        ctx, errorMessage == null ? nullptr : errorMessage.toNativeUtf8());
   }
 
   AcceptDownload get _acceptDownload {
