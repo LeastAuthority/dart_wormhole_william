@@ -18,8 +18,6 @@
 #define debugf(format, ...)
 #endif
 
-typedef int64_t (*seekf_dart)(Dart_Handle, int64_t, int32_t whence);
-
 typedef struct {
   int64_t read_args_port;
 
@@ -32,6 +30,7 @@ typedef struct {
   volatile struct {
     bool done;
     int bytes_read;
+    char *error_msg;
   } call_state;
 } read_state;
 
@@ -48,23 +47,41 @@ typedef struct {
 
   volatile struct {
     bool done;
-    bool successful;
+    char *error_msg;
   } call_state;
 } write_state;
+
+typedef struct {
+  int64_t seek_args_port;
+
+  int32_t download_id;
+
+  struct {
+    void *context;
+    int64_t new_offset;
+    int32_t whence;
+  } args;
+
+  volatile struct {
+    bool done;
+    int64_t current_offset;
+    char *error_msg;
+  } call_state;
+} seek_state;
 
 typedef struct {
   const char *entrypoint;
 
   int64_t progress_port_id;
   int64_t result_port_id;
+  int64_t codegen_result_port_id;
   int64_t file_metadata_port_id;
 
   int32_t transfer_id;
 
   write_state write;
   read_state read;
-  seekf_dart seek;
-  Dart_Handle file;
+  seek_state seek;
 } context;
 
 typedef int32_t client_id_t;
@@ -86,10 +103,12 @@ int64_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
     }                                                                          \
   }
 
-int read_callback(void *ctx, uint8_t *bytes, int length) {
+read_result_t read_callback(void *ctx, uint8_t *bytes, int length) {
   context *_ctx = (context *)(ctx);
 
   _ctx->read.call_state.done = false;
+  _ctx->read.call_state.bytes_read = -1;
+  _ctx->read.call_state.error_msg = NULL;
   _ctx->read.args.buffer = bytes;
   _ctx->read.args.length = length;
 
@@ -97,10 +116,12 @@ int read_callback(void *ctx, uint8_t *bytes, int length) {
 
   while (!_ctx->read.call_state.done)
     ;
-  return _ctx->read.call_state.bytes_read;
+  return (read_result_t){.bytes_read = _ctx->read.call_state.bytes_read,
+                         .error_msg = _ctx->read.call_state.error_msg};
 }
 
-int write_callback(void *ctx, uint8_t *bytes, int32_t length) {
+char *write_callback(void *ctx, uint8_t *bytes, int32_t length) {
+  debugf("Calling write with ctx:%p, bytes:%p, length:%d", ctx, bytes, length);
   context *_ctx = (context *)(ctx);
 
   _ctx->write.call_state.done = false;
@@ -112,24 +133,49 @@ int write_callback(void *ctx, uint8_t *bytes, int32_t length) {
   while (!_ctx->write.call_state.done)
     ;
 
-  return _ctx->write.call_state.successful;
+  return _ctx->write.call_state.error_msg;
 }
 
-int64_t seek_callback(void *ctx, int64_t offset, int whence) {
+seek_result_t seek_callback(void *ctx, int64_t offset, int32_t whence) {
   context *_ctx = (context *)(ctx);
 
-  return _ctx->seek(_ctx->file, offset, whence);
+  _ctx->seek.call_state.done = false;
+  _ctx->seek.call_state.error_msg = NULL;
+  _ctx->seek.call_state.current_offset = -1;
+  _ctx->seek.args.new_offset = offset;
+  _ctx->seek.args.whence = whence;
+  _ctx->seek.args.context = _ctx;
+
+  debugf("Calling seek with args: context:%p, offset:%ld, whence:%d", ctx,
+         offset, whence);
+
+  DartSend(_ctx->seek.seek_args_port, &(_ctx->seek.args));
+
+  while (!_ctx->seek.call_state.done)
+    ;
+
+  return (seek_result_t){.current_offset = _ctx->seek.call_state.current_offset,
+                         .error_msg = _ctx->seek.call_state.error_msg};
 }
 
-void read_done(void *ctx, int64_t length) {
+void seek_done(void *ctx, int64_t current_offset, char *error_msg) {
+  context *_ctx = (context *)ctx;
+  debugf("Done seeking %ld %s", current_offset, error_msg);
+  _ctx->seek.call_state.current_offset = current_offset;
+  _ctx->seek.call_state.error_msg = error_msg;
+  _ctx->seek.call_state.done = true;
+}
+
+void read_done(void *ctx, int64_t length, char *error_msg) {
   context *_ctx = (context *)ctx;
   _ctx->read.call_state.bytes_read = length;
+  _ctx->read.call_state.error_msg = error_msg;
   _ctx->read.call_state.done = true;
 }
 
-void write_done(void *ctx, bool successful) {
+void write_done(void *ctx, char *error_msg) {
   context *_ctx = (context *)ctx;
-  _ctx->write.call_state.successful = successful;
+  _ctx->write.call_state.error_msg = error_msg;
   _ctx->write.call_state.done = true;
 }
 
@@ -139,6 +185,10 @@ bool entrypoint_is(context *ctx, const char *other) {
 
 void async_callback(void *ptr, result_t *result) {
   DartSend(((context *)ptr)->result_port_id, result);
+}
+
+void notify_codegen(void *ptr, codegen_result_t *result) {
+  DartSend(((context *)ptr)->codegen_result_port_id, result);
 }
 
 void update_progress_callback(void *ptr, progress_t *progress) {
@@ -172,6 +222,7 @@ wrapped_context_t *new_wrapped_context(client_context_t clientCtx,
       (wrapped_context_t){.clientCtx = clientCtx,
                           .go_client_id = go_client_id,
                           .impl = {.notify = async_callback,
+                                   .notify_codegen = notify_codegen,
                                    .update_progress = update_progress_callback,
                                    .update_metadata = set_file_metadata,
                                    .log = log_callback,
@@ -195,27 +246,25 @@ codegen_result_t *async_ClientSendText(client_id_t client_id, char *msg,
   return ClientSendText(wctx, msg);
 }
 
-codegen_result_t *async_ClientSendFile(client_id_t client_id, char *file_name,
-                                       int64_t result_port_id,
-                                       int64_t progress_port_id,
-                                       Dart_Handle file, int64_t read_args_port,
-                                       seekf_dart seek) {
+void async_ClientSendFile(client_id_t client_id, char *file_name,
+                          int64_t codegen_result_port_id,
+                          int64_t result_port_id, int64_t progress_port_id,
+                          int64_t read_args_port, int64_t seek_args_port) {
   context *ctx = (context *)(calloc(1, sizeof(context)));
   *ctx = (context){
-      .result_port_id = result_port_id,
       .entrypoint = SEND_FILE,
-      .progress_port_id = progress_port_id,
-      .file = file,
-      .read.read_args_port = read_args_port,
       .read.call_state.done = false,
-      .seek = seek,
+      .seek.call_state.done = false,
+      .result_port_id = result_port_id,
+      .codegen_result_port_id = codegen_result_port_id,
+      .progress_port_id = progress_port_id,
+      .read.read_args_port = read_args_port,
+      .seek.seek_args_port = seek_args_port,
   };
 
   ctx->read.args.context = ctx;
   wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
-  codegen_result_t *result = ClientSendFile(wctx, file_name);
-  ctx->transfer_id = result->generated.transfer_id;
-  return result;
+  ClientSendFile(wctx, file_name);
 }
 
 int async_ClientRecvText(client_id_t client_id, char *code,
@@ -231,9 +280,9 @@ int async_ClientRecvText(client_id_t client_id, char *code,
   return ClientRecvText(wctx, code);
 }
 
-int async_ClientRecvFile(client_id_t client_id, char *code,
-                         int64_t result_port_id, int64_t progress_port_id,
-                         int64_t fmd_port_id, int64_t write_args_port_id) {
+void async_ClientRecvFile(client_id_t client_id, char *code,
+                          int64_t result_port_id, int64_t progress_port_id,
+                          int64_t fmd_port_id, int64_t write_args_port_id) {
   context *ctx = (context *)(calloc(1, sizeof(context)));
   *ctx = (context){
       .result_port_id = result_port_id,
@@ -248,7 +297,7 @@ int async_ClientRecvFile(client_id_t client_id, char *code,
 
   wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
 
-  return ClientRecvFile(wctx, code);
+  ClientRecvFile(wctx, code);
 }
 
 void accept_download(void *ctx) {
