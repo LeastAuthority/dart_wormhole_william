@@ -27,4 +27,5 @@ target_link_libraries(bindings PRIVATE ${WORMHOLE_WILLIAM_LIB})
 set_target_properties(
   bindings
   PROPERTIES PUBLIC_HEADER bindings.h
-             OUTPUT_NAME "bindings")
+             OUTPUT_NAME "bindings"
+             BUILD_WITH_INSTALL_RPATH TRUE)
