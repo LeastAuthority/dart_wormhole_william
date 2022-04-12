@@ -28,6 +28,8 @@ target_link_libraries(${PLUGIN_LIB} PRIVATE flutter)
 target_link_libraries(${PLUGIN_LIB} PRIVATE PkgConfig::GTK)
 target_link_libraries(${PLUGIN_LIB} PRIVATE bindings)
 
+set_target_properties(${PLUGIN_LIB} PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE)
+
 # List of absolute paths to libraries that should be bundled with the plugin
 if(dart_wormhole_william_IS_TOP_LEVEL)
   set(dart_wormhole_william_bundled_libraries $<TARGET_FILE:wormhole_william>
