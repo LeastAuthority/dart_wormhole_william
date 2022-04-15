@@ -37,8 +37,6 @@ typedef struct {
 typedef struct {
   int64_t write_args_port;
 
-  int32_t download_id;
-
   struct {
     void *context;
     uint8_t *buffer;
@@ -53,8 +51,6 @@ typedef struct {
 
 typedef struct {
   int64_t seek_args_port;
-
-  int32_t download_id;
 
   struct {
     void *context;
@@ -77,14 +73,10 @@ typedef struct {
   int64_t codegen_result_port_id;
   int64_t file_metadata_port_id;
 
-  int32_t transfer_id;
-
   write_state write;
   read_state read;
   seek_state seek;
 } context;
-
-typedef int32_t client_id_t;
 
 const char *SEND_TEXT = "context/send_text";
 const char *RECV_TEXT = "context/recv_text";
@@ -121,10 +113,10 @@ read_result_t read_callback(void *ctx, uint8_t *bytes, int length) {
 }
 
 char *write_callback(void *ctx, uint8_t *bytes, int32_t length) {
-  debugf("Calling write with ctx:%p, bytes:%p, length:%d", ctx, bytes, length);
   context *_ctx = (context *)(ctx);
 
   _ctx->write.call_state.done = false;
+  _ctx->write.call_state.error_msg = NULL;
   _ctx->write.args.buffer = bytes;
   _ctx->write.args.length = length;
 
@@ -146,9 +138,6 @@ seek_result_t seek_callback(void *ctx, int64_t offset, int32_t whence) {
   _ctx->seek.args.whence = whence;
   _ctx->seek.args.context = _ctx;
 
-  debugf("Calling seek with args: context:%p, offset:%ld, whence:%d", ctx,
-         offset, whence);
-
   DartSend(_ctx->seek.seek_args_port, &(_ctx->seek.args));
 
   while (!_ctx->seek.call_state.done)
@@ -160,7 +149,6 @@ seek_result_t seek_callback(void *ctx, int64_t offset, int32_t whence) {
 
 void seek_done(void *ctx, int64_t current_offset, char *error_msg) {
   context *_ctx = (context *)ctx;
-  debugf("Done seeking %ld %s", current_offset, error_msg);
   _ctx->seek.call_state.current_offset = current_offset;
   _ctx->seek.call_state.error_msg = error_msg;
   _ctx->seek.call_state.done = true;
@@ -179,11 +167,7 @@ void write_done(void *ctx, char *error_msg) {
   _ctx->write.call_state.done = true;
 }
 
-bool entrypoint_is(context *ctx, const char *other) {
-  return strcmp(ctx->entrypoint, other) == 0;
-}
-
-void async_callback(void *ptr, result_t *result) {
+void notify(void *ptr, result_t *result) {
   DartSend(((context *)ptr)->result_port_id, result);
 }
 
@@ -191,7 +175,7 @@ void notify_codegen(void *ptr, codegen_result_t *result) {
   DartSend(((context *)ptr)->codegen_result_port_id, result);
 }
 
-void update_progress_callback(void *ptr, progress_t *progress) {
+void update_progress(void *ptr, progress_t *progress) {
   DartSend(((context *)ptr)->progress_port_id, progress);
 }
 
@@ -200,56 +184,67 @@ void log_callback(void *context, char *msg) {
 }
 
 void set_file_metadata(void *ctx, file_metadata_t *fmd) {
-  debugf("Setting file metadata: length:%ld, file_name:%s, download_id:%d, "
-         "context:%p",
-         fmd->length, fmd->file_name, fmd->download_id, fmd->context);
-  ((context *)ctx)->transfer_id = fmd->download_id;
-  fmd->context = ctx;
   DartSend(((context *)ctx)->file_metadata_port_id, fmd);
 }
 
 void free_context(context *ctx) {
   if (ctx != NULL) {
     free(ctx);
+  } else {
+    debugf("Trying to free a null context. ctx:%p", ctx);
+    abort();
   }
 }
 
 wrapped_context_t *new_wrapped_context(client_context_t clientCtx,
-                                       int32_t go_client_id) {
+                                       client_config_t config) {
   wrapped_context_t *wctx =
       (wrapped_context_t *)(calloc(1, sizeof(wrapped_context_t)));
-  *wctx =
-      (wrapped_context_t){.clientCtx = clientCtx,
-                          .go_client_id = go_client_id,
-                          .impl = {.notify = async_callback,
-                                   .notify_codegen = notify_codegen,
-                                   .update_progress = update_progress_callback,
-                                   .update_metadata = set_file_metadata,
-                                   .log = log_callback,
-                                   .write = write_callback,
-                                   .seek = seek_callback,
-                                   .read = read_callback,
-                                   .free_client_ctx = free_context}};
+  *wctx = (wrapped_context_t){.clientCtx = clientCtx,
+                              .config = config,
+                              .result.context = wctx,
+                              .impl = {.notify = notify,
+                                       .notify_codegen = notify_codegen,
+                                       .update_progress = update_progress,
+                                       .update_metadata = set_file_metadata,
+                                       .log = log_callback,
+                                       .write = write_callback,
+                                       .seek = seek_callback,
+                                       .read = read_callback,
+                                       .free_client_ctx = free_context}};
   return wctx;
 }
 
-codegen_result_t *async_ClientSendText(client_id_t client_id, char *msg,
-                                       int64_t result_port_id) {
+wrapped_context_t *async_ClientSendText(char *app_id, char *transit_relay_url,
+                                        char *rendezvous_url,
+                                        int32_t passphrase_component_length,
+                                        char *msg, int64_t result_port_id,
+                                        int64_t codegen_result_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
   *ctx = (context){
+      .codegen_result_port_id = codegen_result_port_id,
       .result_port_id = result_port_id,
       .entrypoint = SEND_TEXT,
   };
 
-  wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
+  wrapped_context_t *wctx = new_wrapped_context(
+      ctx, (client_config_t){
+               .app_id = app_id,
+               .transit_relay_url = transit_relay_url,
+               .rendezvous_url = rendezvous_url,
+               .passphrase_length = passphrase_component_length,
+           });
 
-  return ClientSendText(wctx, msg);
+  ClientSendText(wctx, msg);
+  return wctx;
 }
 
-void async_ClientSendFile(client_id_t client_id, char *file_name,
-                          int64_t codegen_result_port_id,
-                          int64_t result_port_id, int64_t progress_port_id,
-                          int64_t read_args_port, int64_t seek_args_port) {
+wrapped_context_t *
+async_ClientSendFile(char *app_id, char *transit_relay_url,
+                     char *rendezvous_url, int passphrase_component_length,
+                     char *file_name, int64_t codegen_result_port_id,
+                     int64_t result_port_id, int64_t progress_port_id,
+                     int64_t read_args_port, int64_t seek_args_port) {
   context *ctx = (context *)(calloc(1, sizeof(context)));
   *ctx = (context){
       .entrypoint = SEND_FILE,
@@ -263,26 +258,43 @@ void async_ClientSendFile(client_id_t client_id, char *file_name,
   };
 
   ctx->read.args.context = ctx;
-  wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
+  wrapped_context_t *wctx = new_wrapped_context(
+      ctx, (client_config_t){
+               .app_id = app_id,
+               .transit_relay_url = transit_relay_url,
+               .rendezvous_url = rendezvous_url,
+               .passphrase_length = passphrase_component_length,
+           });
   ClientSendFile(wctx, file_name);
+  return wctx;
 }
 
-int async_ClientRecvText(client_id_t client_id, char *code,
-                         int64_t result_port_id) {
+wrapped_context_t *async_ClientRecvText(char *app_id, char *transit_relay_url,
+                                        char *rendezvous_url,
+                                        int passphrase_component_length,
+                                        char *code, int64_t result_port_id) {
   context *ctx = (context *)(calloc(1, sizeof(context)));
   *ctx = (context){
       .result_port_id = result_port_id,
       .entrypoint = RECV_TEXT,
   };
 
-  wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
+  wrapped_context_t *wctx = new_wrapped_context(
+      ctx, (client_config_t){
+               .app_id = app_id,
+               .transit_relay_url = transit_relay_url,
+               .rendezvous_url = rendezvous_url,
+               .passphrase_length = passphrase_component_length,
+           });
+  ClientRecvText(wctx, code);
 
-  return ClientRecvText(wctx, code);
+  return wctx;
 }
 
-void async_ClientRecvFile(client_id_t client_id, char *code,
-                          int64_t result_port_id, int64_t progress_port_id,
-                          int64_t fmd_port_id, int64_t write_args_port_id) {
+wrapped_context_t *async_ClientRecvFile(
+    char *app_id, char *transit_relay_url, char *rendezvous_url,
+    int passphrase_component_length, char *code, int64_t result_port_id,
+    int64_t progress_port_id, int64_t fmd_port_id, int64_t write_args_port_id) {
   context *ctx = (context *)(calloc(1, sizeof(context)));
   *ctx = (context){
       .result_port_id = result_port_id,
@@ -295,21 +307,21 @@ void async_ClientRecvFile(client_id_t client_id, char *code,
 
   ctx->write.args.context = ctx;
 
-  wrapped_context_t *wctx = new_wrapped_context(ctx, client_id);
-
+  wrapped_context_t *wctx = new_wrapped_context(
+      ctx, (client_config_t){
+               .app_id = app_id,
+               .transit_relay_url = transit_relay_url,
+               .rendezvous_url = rendezvous_url,
+               .passphrase_length = passphrase_component_length,
+           });
   ClientRecvFile(wctx, code);
+  return wctx;
 }
 
-void accept_download(void *ctx) {
-  return AcceptDownload(((context *)ctx)->write.download_id);
-}
+void accept_download(void *wctx) { return AcceptDownload(wctx); }
 
-void reject_download(void *ctx) {
-  return RejectDownload(((context *)ctx)->write.download_id);
-}
+void reject_download(void *wctx) { return RejectDownload(wctx); }
 
-void cancel_transfer(void *ctx) {
-  return CancelTransfer(((context *)ctx)->transfer_id);
-}
+void cancel_transfer(void *wctx) { return CancelTransfer(wctx); }
 
-int32_t finalize(int32_t clientId) { return Finalize(clientId); }
+void finalize(void *wctx) { return Finalize(wctx); }
