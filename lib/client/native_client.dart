@@ -16,26 +16,29 @@ const ErrCodeTransferCancelled = 6;
 typedef InitDartApiNative = IntPtr Function(Pointer<Void>);
 typedef InitDartApi = int Function(Pointer<Void>);
 
-typedef NewClientNative = IntPtr Function(
+typedef ClientSendTextNative = Pointer<Void> Function(
     Pointer<Utf8> appId,
-    Pointer<Utf8> rendezvousUrl,
     Pointer<Utf8> transitRelayUrl,
-    Int32 passPhraseComponentLength);
+    Pointer<Utf8> rendezvousUrl,
+    Int32 passPhraseComponentLength,
+    Pointer<Utf8> msg,
+    Int64 resultPortId,
+    Int64 codegenPortId);
 
-typedef NewClient = int Function(
+typedef ClientSendText = Pointer<Void> Function(
     Pointer<Utf8> appId,
-    Pointer<Utf8> rendezvousUrl,
     Pointer<Utf8> transitRelayUrl,
-    int passPhraseComponentLength);
+    Pointer<Utf8> rendezvousUrl,
+    int passPhraseComponentLength,
+    Pointer<Utf8> msg,
+    int resultPortId,
+    int codegenResultPortId);
 
-typedef ClientSendTextNative = Pointer<CodeGenerationResult> Function(
-    IntPtr goClientId, Pointer<Utf8> msg, Int64 callbackPortId);
-
-typedef ClientSendText = Pointer<CodeGenerationResult> Function(
-    int goClientId, Pointer<Utf8> msg, int callbackPortId);
-
-typedef ClientSendFileNative = Void Function(
-    Int32 goClientId,
+typedef ClientSendFileNative = Pointer<Void> Function(
+    Pointer<Utf8> appId,
+    Pointer<Utf8> transitRelayUrl,
+    Pointer<Utf8> rendezvousUrl,
+    Int32 passPhraseComponentLength,
     Pointer<Utf8> fileName,
     Int64 codegenResultPortId,
     Int64 callbackPortId,
@@ -43,8 +46,11 @@ typedef ClientSendFileNative = Void Function(
     Int64 readArgsPort,
     Int64 seekArgsPort);
 
-typedef ClientSendFile = void Function(
-    int goClientId,
+typedef ClientSendFile = Pointer<Void> Function(
+    Pointer<Utf8> appId,
+    Pointer<Utf8> transitRelayUrl,
+    Pointer<Utf8> rendezvousUrl,
+    int passPhraseComponentLength,
     Pointer<Utf8> fileName,
     int codegenResultPortId,
     int callbackPortId,
@@ -53,13 +59,26 @@ typedef ClientSendFile = void Function(
     int seekArgsPort);
 
 typedef ClientRecvTextNative = Int32 Function(
-    IntPtr goClientId, Pointer<Utf8> code, Int64 callbackPortId);
+    Pointer<Utf8> appId,
+    Pointer<Utf8> transitRelayUrl,
+    Pointer<Utf8> rendezvousUrl,
+    Int32 passPhraseComponentLength,
+    Pointer<Utf8> code,
+    Int64 callbackPortId);
 
 typedef ClientRecvText = int Function(
-    int goClientId, Pointer<Utf8> code, int callbackPortId);
+    Pointer<Utf8> appId,
+    Pointer<Utf8> transitRelayUrl,
+    Pointer<Utf8> rendezvousUrl,
+    int passPhraseComponentLength,
+    Pointer<Utf8> code,
+    int callbackPortId);
 
 typedef ClientRecvFileNative = Void Function(
-    Int32 goClientId,
+    Pointer<Utf8> appId,
+    Pointer<Utf8> transitRelayUrl,
+    Pointer<Utf8> rendezvousUrl,
+    Int32 passPhraseComponentLength,
     Pointer<Utf8> code,
     Int64 callbackPortId,
     Int64 progressPortId,
@@ -67,7 +86,10 @@ typedef ClientRecvFileNative = Void Function(
     Int64 writeBytesPortId);
 
 typedef ClientRecvFile = void Function(
-    int goClientId,
+    Pointer<Utf8> appId,
+    Pointer<Utf8> transitRelayUrl,
+    Pointer<Utf8> rendezvousUrl,
+    int passPhraseComponentLength,
     Pointer<Utf8> code,
     int callbackPortId,
     int progressPortId,
@@ -99,8 +121,8 @@ typedef RejectDownload = void Function(Pointer<Void>);
 typedef CancelTransferNative = Void Function(Pointer<Void>);
 typedef CancelTransfer = void Function(Pointer<Void>);
 
-typedef FinalizeNative = Int32 Function(Int32);
-typedef Finalize = int Function(int);
+typedef FinalizeNative = Void Function(Pointer<Void>);
+typedef Finalize = void Function(Pointer<Void>);
 
 class Config {
   final String appId;
@@ -123,54 +145,70 @@ class Config {
 class NativeClient {
   late final DynamicLibrary _wormholeWilliamLib;
   late final DynamicLibrary _asyncCallbackLib;
-  late final _goClientId;
+  late final Config config;
 
   NativeClient({Config? config}) {
     _wormholeWilliamLib = DynamicLibrary.open(libName("wormhole_william"));
     _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
     _initDartApi(NativeApi.initializeApiDLData);
 
-    Config effectiveConfig = config ?? Config();
-
-    _goClientId = _newClient(
-        effectiveConfig.appId.toNativeUtf8(),
-        effectiveConfig.rendezvousUrl.toNativeUtf8(),
-        effectiveConfig.transitRelayUrl.toNativeUtf8(),
-        effectiveConfig.passPhraseComponentLength);
+    this.config = config ?? Config();
   }
 
-  int get clientId => _goClientId;
-
-  NewClient get _newClient {
-    return _wormholeWilliamLib
-        .lookup<NativeFunction<NewClientNative>>('NewClient')
-        .asFunction();
+  Pointer<Void> clientSendText(
+      String msg, int resultPortId, int codegenResultPortId) {
+    return _clientSendText(
+        config.appId.toNativeUtf8(),
+        config.transitRelayUrl.toNativeUtf8(),
+        config.rendezvousUrl.toNativeUtf8(),
+        config.passPhraseComponentLength,
+        msg.toNativeUtf8(),
+        resultPortId,
+        codegenResultPortId);
   }
 
-  Pointer<CodeGenerationResult> clientSendText(
-      Pointer<Utf8> msg, int callbackPortId) {
-    return _clientSendText(_goClientId, msg, callbackPortId);
-  }
-
-  void clientSendFile(
-      Pointer<Utf8> fileName,
+  Pointer<Void> clientSendFile(
+      String fileName,
       int codegenResultPortId,
       int callbackPortId,
       int progressPortId,
       int readArgsPort,
       int seekArgsPort) {
-    return _clientSendFile(_goClientId, fileName, codegenResultPortId,
-        callbackPortId, progressPortId, readArgsPort, seekArgsPort);
+    return _clientSendFile(
+        config.appId.toNativeUtf8(),
+        config.transitRelayUrl.toNativeUtf8(),
+        config.rendezvousUrl.toNativeUtf8(),
+        config.passPhraseComponentLength,
+        fileName.toNativeUtf8(),
+        codegenResultPortId,
+        callbackPortId,
+        progressPortId,
+        readArgsPort,
+        seekArgsPort);
   }
 
-  int clientRecvText(Pointer<Utf8> code, int callbackPortId) {
-    return _clientRecvText(_goClientId, code, callbackPortId);
+  int clientRecvText(String code, int callbackPortId) {
+    return _clientRecvText(
+        config.appId.toNativeUtf8(),
+        config.transitRelayUrl.toNativeUtf8(),
+        config.rendezvousUrl.toNativeUtf8(),
+        config.passPhraseComponentLength,
+        code.toNativeUtf8(),
+        callbackPortId);
   }
 
-  void clientRecvFile(Pointer<Utf8> code, int callbackPortId,
-      int progressPortId, int fmdPortId, int writeBytesPortId) {
-    _clientRecvFile(_goClientId, code, callbackPortId, progressPortId,
-        fmdPortId, writeBytesPortId);
+  void clientRecvFile(String code, int callbackPortId, int progressPortId,
+      int fmdPortId, int writeBytesPortId) {
+    _clientRecvFile(
+        config.appId.toNativeUtf8(),
+        config.transitRelayUrl.toNativeUtf8(),
+        config.rendezvousUrl.toNativeUtf8(),
+        config.passPhraseComponentLength,
+        code.toNativeUtf8(),
+        callbackPortId,
+        progressPortId,
+        fmdPortId,
+        writeBytesPortId);
   }
 
   void freeResult(int result) {
@@ -187,8 +225,8 @@ class NativeClient {
         .asFunction();
   }
 
-  void finalize(int clientId) {
-    _finalize(clientId);
+  void finalize(Pointer<Void> transferContext) {
+    _finalize(transferContext);
   }
 
   // -- getters for wrapping native functions in dart --//

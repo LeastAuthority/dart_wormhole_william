@@ -61,7 +61,7 @@ extension ResultHandling<T> on Completer<T> {
       }
 
       this.future.whenComplete(() {
-        nativeClient.finalize(nativeClient.clientId);
+        nativeClient.finalize(callbackResult.ref.context);
       });
     } else {
       this.completeError(
@@ -79,48 +79,50 @@ class Client {
 
   Future<SendResult> sendText(String msg) async {
     final done = Completer<CallbackResult>();
+    final codegeneration = Completer<String>();
 
-    final rxPort = ReceivePort()
+    final resultPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, _native, (callbackResult) {
           return callbackResult;
         });
       });
 
-    final codeGenResult =
-        _native.clientSendText(msg.toNativeUtf8(), rxPort.sendPort.nativePort);
-
-    try {
-      if (codeGenResult.ref.resultType != 0) {
-        throw Exception(
-            'Failed to send text. Error code: ${codeGenResult.ref.resultType}, Error: ${codeGenResult.ref.error.errorString.toDartString()}');
-      }
-
-      return SendResult(
-          codeGenResult.ref.generated.code.toDartString(), done.future, () {
-        _native.cancelTransfer(codeGenResult.ref.context);
+    final codegenResultPort = ReceivePort()
+      ..listen((dynamic result) {
+        if (result is int) {
+          Pointer<CodeGenerationResult> resultRef = Pointer.fromAddress(result);
+          if (resultRef.ref.resultType == 0) {
+            codegeneration
+                .complete(resultRef.ref.generated.code.toDartString());
+          } else {
+            codegeneration.completeError(ClientError(
+                resultRef.ref.error.errorString.toDartString(),
+                resultRef.ref.resultType));
+          }
+        }
       });
-    } finally {
-      _native.freeCodegenResult(codeGenResult.address);
-    }
+
+    final context = _native.clientSendText(msg, resultPort.sendPort.nativePort,
+        codegenResultPort.sendPort.nativePort);
+
+    return codegeneration.future
+        .then((code) => SendResult(code, done.future, () {
+              _native.cancelTransfer(context);
+            }));
   }
 
   Future<String> recvText(String code) async {
     final done = Completer<String>();
 
-    final rxPort = ReceivePort()
+    final resultPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, _native, (callbackResult) {
           return callbackResult.receivedText.toDartString();
         });
       });
 
-    final int errCode =
-        _native.clientRecvText(code.toNativeUtf8(), rxPort.sendPort.nativePort);
-    if (errCode != 0) {
-      // TODO: Create exception implementation(s).
-      throw Exception('Failed to send text. Error code: $errCode');
-    }
+    _native.clientRecvText(code, resultPort.sendPort.nativePort);
 
     return done.future;
   }
@@ -231,7 +233,7 @@ class Client {
       });
 
     _native.clientSendFile(
-        fileName.toNativeUtf8(),
+        fileName,
         codeGenerationResult.sendPort.nativePort,
         rxPort.sendPort.nativePort,
         progressPort.sendPort.nativePort,
@@ -299,7 +301,7 @@ class Client {
       });
 
     _native.clientRecvFile(
-        code.toNativeUtf8(),
+        code,
         resultPort.sendPort.nativePort,
         progressPort.sendPort.nativePort,
         metadataPort.sendPort.nativePort,

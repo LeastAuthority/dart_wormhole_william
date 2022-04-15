@@ -3,6 +3,7 @@ import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
 class CallbackResult extends Struct {
+  external Pointer<Void> context;
   @Int32()
   external int errorCode;
 
@@ -16,8 +17,6 @@ class Error extends Struct {
 
 class CodeGenerated extends Struct {
   external Pointer<Utf8> code;
-  @Int32()
-  external int transferId;
 }
 
 class CodeGenerationResult extends Struct {
@@ -62,7 +61,5 @@ class FileMetadataStruct extends Struct {
   @Int64()
   external int size;
   external Pointer<Utf8> fileName;
-  @Int32()
-  external int downloadId;
   external Pointer<Void> context;
 }
