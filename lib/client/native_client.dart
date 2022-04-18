@@ -58,7 +58,7 @@ typedef ClientSendFile = Pointer<Void> Function(
     int readArgsPort,
     int seekArgsPort);
 
-typedef ClientRecvTextNative = Int32 Function(
+typedef ClientRecvTextNative = Pointer<Void> Function(
     Pointer<Utf8> appId,
     Pointer<Utf8> transitRelayUrl,
     Pointer<Utf8> rendezvousUrl,
@@ -66,7 +66,7 @@ typedef ClientRecvTextNative = Int32 Function(
     Pointer<Utf8> code,
     Int64 callbackPortId);
 
-typedef ClientRecvText = int Function(
+typedef ClientRecvText = Pointer<Void> Function(
     Pointer<Utf8> appId,
     Pointer<Utf8> transitRelayUrl,
     Pointer<Utf8> rendezvousUrl,
@@ -74,7 +74,7 @@ typedef ClientRecvText = int Function(
     Pointer<Utf8> code,
     int callbackPortId);
 
-typedef ClientRecvFileNative = Void Function(
+typedef ClientRecvFileNative = Pointer<Void> Function(
     Pointer<Utf8> appId,
     Pointer<Utf8> transitRelayUrl,
     Pointer<Utf8> rendezvousUrl,
@@ -85,7 +85,7 @@ typedef ClientRecvFileNative = Void Function(
     Int64 fmdPortId,
     Int64 writeBytesPortId);
 
-typedef ClientRecvFile = void Function(
+typedef ClientRecvFile = Pointer<Void> Function(
     Pointer<Utf8> appId,
     Pointer<Utf8> transitRelayUrl,
     Pointer<Utf8> rendezvousUrl,
@@ -95,13 +95,6 @@ typedef ClientRecvFile = void Function(
     int progressPortId,
     int fmdPortId,
     int writeBytesPortId);
-
-typedef FreeResultNative = Void Function(Pointer<CallbackResult> result);
-typedef FreeResult = void Function(Pointer<CallbackResult> result);
-
-typedef FreeCodegenResultNative = Void Function(
-    Pointer<CodeGenerationResult> result);
-typedef FreeCodegenResult = void Function(Pointer<CodeGenerationResult> result);
 
 typedef ReadDoneNative = Void Function(Pointer<Void>, Int64, Pointer<Utf8>);
 typedef ReadDone = void Function(Pointer<Void>, int, Pointer<Utf8>);
@@ -187,7 +180,7 @@ class NativeClient {
         seekArgsPort);
   }
 
-  int clientRecvText(String code, int callbackPortId) {
+  Pointer<Void> clientRecvText(String code, int callbackPortId) {
     return _clientRecvText(
         config.appId.toNativeUtf8(),
         config.transitRelayUrl.toNativeUtf8(),
@@ -197,9 +190,9 @@ class NativeClient {
         callbackPortId);
   }
 
-  void clientRecvFile(String code, int callbackPortId, int progressPortId,
-      int fmdPortId, int writeBytesPortId) {
-    _clientRecvFile(
+  Pointer<Void> clientRecvFile(String code, int callbackPortId,
+      int progressPortId, int fmdPortId, int writeBytesPortId) {
+    return _clientRecvFile(
         config.appId.toNativeUtf8(),
         config.transitRelayUrl.toNativeUtf8(),
         config.rendezvousUrl.toNativeUtf8(),
@@ -209,14 +202,6 @@ class NativeClient {
         progressPortId,
         fmdPortId,
         writeBytesPortId);
-  }
-
-  void freeResult(int result) {
-    _freeResult(Pointer.fromAddress(result));
-  }
-
-  void freeCodegenResult(int codegenResult) {
-    _freeCodegenResult(Pointer.fromAddress(codegenResult));
   }
 
   Finalize get _finalize {
@@ -321,18 +306,6 @@ class NativeClient {
     final nativeFnPointer = _asyncCallbackLib
         .lookup<NativeFunction<InitDartApiNative>>('init_dart_api_dl');
     return nativeFnPointer.asFunction<InitDartApi>();
-  }
-
-  FreeResult get _freeResult {
-    return _wormholeWilliamLib
-        .lookup<NativeFunction<FreeResultNative>>('free_result')
-        .asFunction();
-  }
-
-  FreeCodegenResult get _freeCodegenResult {
-    return _wormholeWilliamLib
-        .lookup<NativeFunction<FreeCodegenResultNative>>('free_codegen_result')
-        .asFunction();
   }
 
   static String libName(String libraryName, {String? version}) {

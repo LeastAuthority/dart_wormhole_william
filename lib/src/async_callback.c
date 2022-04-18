@@ -202,7 +202,6 @@ wrapped_context_t *new_wrapped_context(client_context_t clientCtx,
       (wrapped_context_t *)(calloc(1, sizeof(wrapped_context_t)));
   *wctx = (wrapped_context_t){.clientCtx = clientCtx,
                               .config = config,
-                              .result.context = wctx,
                               .impl = {.notify = notify,
                                        .notify_codegen = notify_codegen,
                                        .update_progress = update_progress,
