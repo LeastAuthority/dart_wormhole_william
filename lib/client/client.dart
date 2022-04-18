@@ -45,8 +45,8 @@ class ClientError {
 }
 
 extension ResultHandling<T> on Completer<T> {
-  void handleResult(dynamic result, NativeClient nativeClient,
-      T Function(CallbackResult) success) {
+  void handleResult(dynamic result, Pointer<Void> context,
+      NativeClient nativeClient, T Function(CallbackResult) success) {
     if (result is int) {
       var callbackResult = Pointer<CallbackResult>.fromAddress(result);
 
@@ -61,7 +61,7 @@ extension ResultHandling<T> on Completer<T> {
       }
 
       this.future.whenComplete(() {
-        nativeClient.finalize(callbackResult.ref.context);
+        nativeClient.finalize(context);
       });
     } else {
       this.completeError(
@@ -80,10 +80,11 @@ class Client {
   Future<SendResult> sendText(String msg) async {
     final done = Completer<CallbackResult>();
     final codegeneration = Completer<String>();
+    late final Pointer<Void> context;
 
     final resultPort = ReceivePort()
       ..listen((dynamic result) {
-        done.handleResult(result, _native, (callbackResult) {
+        done.handleResult(result, context, _native, (callbackResult) {
           return callbackResult;
         });
       });
@@ -103,7 +104,7 @@ class Client {
         }
       });
 
-    final context = _native.clientSendText(msg, resultPort.sendPort.nativePort,
+    context = _native.clientSendText(msg, resultPort.sendPort.nativePort,
         codegenResultPort.sendPort.nativePort);
 
     return codegeneration.future
@@ -115,14 +116,16 @@ class Client {
   Future<String> recvText(String code) async {
     final done = Completer<String>();
 
+    late final Pointer<Void> context;
+
     final resultPort = ReceivePort()
       ..listen((dynamic result) {
-        done.handleResult(result, _native, (callbackResult) {
+        done.handleResult(result, context, _native, (callbackResult) {
           return callbackResult.receivedText.toDartString();
         });
       });
 
-    _native.clientRecvText(code, resultPort.sendPort.nativePort);
+    context = _native.clientRecvText(code, resultPort.sendPort.nativePort);
 
     return done.future;
   }
@@ -169,10 +172,11 @@ class Client {
       [void Function(dynamic) optProgressFunc = defaultProgressHandler]) async {
     final fileName = path.basename(file.path);
     final done = Completer<CallbackResult>();
+    late final Pointer<Void> context;
 
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
-        done.handleResult(result, _native, (callbackResult) {
+        done.handleResult(result, context, _native, (callbackResult) {
           return callbackResult;
         });
       });
@@ -223,8 +227,6 @@ class Client {
               codeGenResult.ref.error.errorString.toDartString(),
               codeGenResult.ref.resultType));
         } else {
-          Pointer<Void> context = codeGenResult.ref.context;
-
           sendResult.complete(SendResult(
               codeGenResult.ref.generated.code.toDartString(), done.future, () {
             _native.cancelTransfer(context);
@@ -232,7 +234,7 @@ class Client {
         }
       });
 
-    _native.clientSendFile(
+    context = _native.clientSendFile(
         fileName,
         codeGenerationResult.sendPort.nativePort,
         rxPort.sendPort.nativePort,
@@ -246,10 +248,11 @@ class Client {
       [void Function(dynamic) optProgressFunc = defaultProgressHandler]) {
     final done = Completer<CallbackResult>();
     final destinationFile = Completer<IOSink>();
+    late final Pointer<Void> context;
 
     final resultPort = ReceivePort()
       ..listen((dynamic result) {
-        done.handleResult(result, _native, (callbackResult) {
+        done.handleResult(result, context, _native, (callbackResult) {
           destinationFile.future.then((file) {
             file.flush().then((dynamic v) => {file.close()});
           });
@@ -273,13 +276,12 @@ class Client {
               (File destination) {
             destinationFile
                 .complete(destination.openWrite(mode: FileMode.append));
-            _native.acceptDownload(received.ref.context);
-            Pointer<Void> context = received.ref.context;
+            _native.acceptDownload(context);
             return () {
               _native.cancelTransfer(context);
             };
           }, () {
-            _native.rejectDownload(received.ref.context);
+            _native.rejectDownload(context);
           }));
         }
       });
@@ -300,7 +302,7 @@ class Client {
         }
       });
 
-    _native.clientRecvFile(
+    context = _native.clientRecvFile(
         code,
         resultPort.sendPort.nativePort,
         progressPort.sendPort.nativePort,
