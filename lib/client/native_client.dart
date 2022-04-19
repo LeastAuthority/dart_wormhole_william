@@ -150,14 +150,23 @@ class NativeClient {
 
   Pointer<Void> clientSendText(
       String msg, int resultPortId, int codegenResultPortId) {
-    return _clientSendText(
-        config.appId.toNativeUtf8(),
-        config.transitRelayUrl.toNativeUtf8(),
-        config.rendezvousUrl.toNativeUtf8(),
-        config.passPhraseComponentLength,
-        msg.toNativeUtf8(),
-        resultPortId,
-        codegenResultPortId);
+    final appIdC = config.appId.toNativeUtf8();
+    final transitRelayUrlC = config.transitRelayUrl.toNativeUtf8();
+    final rendezvousUrlC = config.rendezvousUrl.toNativeUtf8();
+    try {
+      return _clientSendText(
+          appIdC,
+          transitRelayUrlC,
+          rendezvousUrlC,
+          config.passPhraseComponentLength,
+          msg.toNativeUtf8(),
+          resultPortId,
+          codegenResultPortId);
+    } finally {
+      calloc.free(appIdC);
+      calloc.free(transitRelayUrlC);
+      calloc.free(rendezvousUrlC);
+    }
   }
 
   Pointer<Void> clientSendFile(
@@ -167,41 +176,69 @@ class NativeClient {
       int progressPortId,
       int readArgsPort,
       int seekArgsPort) {
-    return _clientSendFile(
-        config.appId.toNativeUtf8(),
-        config.transitRelayUrl.toNativeUtf8(),
-        config.rendezvousUrl.toNativeUtf8(),
-        config.passPhraseComponentLength,
-        fileName.toNativeUtf8(),
-        codegenResultPortId,
-        callbackPortId,
-        progressPortId,
-        readArgsPort,
-        seekArgsPort);
+    final appIdC = config.appId.toNativeUtf8();
+    final transitRelayUrlC = config.transitRelayUrl.toNativeUtf8();
+    final rendezvousUrlC = config.rendezvousUrl.toNativeUtf8();
+    final fileNameC = fileName.toNativeUtf8();
+    try {
+      return _clientSendFile(
+          appIdC,
+          transitRelayUrlC,
+          rendezvousUrlC,
+          config.passPhraseComponentLength,
+          fileNameC,
+          codegenResultPortId,
+          callbackPortId,
+          progressPortId,
+          readArgsPort,
+          seekArgsPort);
+    } finally {
+      calloc.free(appIdC);
+      calloc.free(transitRelayUrlC);
+      calloc.free(rendezvousUrlC);
+      calloc.free(fileNameC);
+    }
   }
 
   Pointer<Void> clientRecvText(String code, int callbackPortId) {
-    return _clientRecvText(
-        config.appId.toNativeUtf8(),
-        config.transitRelayUrl.toNativeUtf8(),
-        config.rendezvousUrl.toNativeUtf8(),
-        config.passPhraseComponentLength,
-        code.toNativeUtf8(),
-        callbackPortId);
+    final appIdC = config.appId.toNativeUtf8();
+    final transitRelayUrlC = config.transitRelayUrl.toNativeUtf8();
+    final rendezvousUrlC = config.rendezvousUrl.toNativeUtf8();
+    final codeC = code.toNativeUtf8();
+    try {
+      return _clientRecvText(appIdC, transitRelayUrlC, rendezvousUrlC,
+          config.passPhraseComponentLength, codeC, callbackPortId);
+    } finally {
+      calloc.free(appIdC);
+      calloc.free(transitRelayUrlC);
+      calloc.free(rendezvousUrlC);
+      calloc.free(codeC);
+    }
   }
 
   Pointer<Void> clientRecvFile(String code, int callbackPortId,
       int progressPortId, int fmdPortId, int writeBytesPortId) {
-    return _clientRecvFile(
-        config.appId.toNativeUtf8(),
-        config.transitRelayUrl.toNativeUtf8(),
-        config.rendezvousUrl.toNativeUtf8(),
-        config.passPhraseComponentLength,
-        code.toNativeUtf8(),
-        callbackPortId,
-        progressPortId,
-        fmdPortId,
-        writeBytesPortId);
+    final appIdC = config.appId.toNativeUtf8();
+    final transitRelayUrlC = config.transitRelayUrl.toNativeUtf8();
+    final rendezvousUrlC = config.rendezvousUrl.toNativeUtf8();
+    final codeC = code.toNativeUtf8();
+    try {
+      return _clientRecvFile(
+          appIdC,
+          transitRelayUrlC,
+          rendezvousUrlC,
+          config.passPhraseComponentLength,
+          codeC,
+          callbackPortId,
+          progressPortId,
+          fmdPortId,
+          writeBytesPortId);
+    } finally {
+      calloc.free(appIdC);
+      calloc.free(transitRelayUrlC);
+      calloc.free(rendezvousUrlC);
+      calloc.free(codeC);
+    }
   }
 
   Finalize get _finalize {
@@ -234,8 +271,14 @@ class NativeClient {
   }
 
   void seekDone(Pointer<Void> ctxPtr, int currentOffset, String? errorMessage) {
-    _seekDone(ctxPtr, currentOffset,
-        errorMessage == null ? nullptr : errorMessage.toNativeUtf8());
+    final errorC = errorMessage == null ? nullptr : errorMessage.toNativeUtf8();
+    try {
+      _seekDone(ctxPtr, currentOffset, errorC);
+    } finally {
+      if (errorC != nullptr) {
+        calloc.free(errorC);
+      }
+    }
   }
 
   ReadDone get _readDone {
@@ -245,8 +288,14 @@ class NativeClient {
   }
 
   void readDone(Pointer<Void> ctxPtr, int bytesRead, String? errorMessage) {
-    _readDone(ctxPtr, bytesRead,
-        errorMessage == null ? nullptr : errorMessage.toNativeUtf8());
+    final errorC = errorMessage == null ? nullptr : errorMessage.toNativeUtf8();
+    try {
+      _readDone(ctxPtr, bytesRead, errorC);
+    } finally {
+      if (errorC != nullptr) {
+        calloc.free(errorC);
+      }
+    }
   }
 
   WriteDone get _writeDone {
@@ -256,8 +305,14 @@ class NativeClient {
   }
 
   void writeDone(Pointer<Void> ctx, String? errorMessage) {
-    _writeDone(
-        ctx, errorMessage == null ? nullptr : errorMessage.toNativeUtf8());
+    final errorC = errorMessage == null ? nullptr : errorMessage.toNativeUtf8();
+    try {
+      _writeDone(ctx, errorC);
+    } finally {
+      if (errorC != nullptr) {
+        calloc.free(errorC);
+      }
+    }
   }
 
   AcceptDownload get _acceptDownload {

@@ -61,7 +61,7 @@ typedef struct {
   volatile struct {
     bool done;
     int64_t current_offset;
-    char *error_msg;
+    const char *error_msg;
   } call_state;
 } seek_state;
 
@@ -84,6 +84,14 @@ const char *SEND_FILE = "context/send_file";
 const char *RECV_FILE = "context/recv_file";
 
 int64_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
+
+char *copy_str(const char *str) {
+  if (str == NULL)
+    return NULL;
+  char *copy = malloc(strlen(str) + 1);
+  strcpy(copy, str);
+  return copy;
+}
 
 #define DartSend(port, message)                                                \
   {                                                                            \
@@ -150,20 +158,20 @@ seek_result_t seek_callback(void *ctx, int64_t offset, int32_t whence) {
 void seek_done(void *ctx, int64_t current_offset, char *error_msg) {
   context *_ctx = (context *)ctx;
   _ctx->seek.call_state.current_offset = current_offset;
-  _ctx->seek.call_state.error_msg = error_msg;
+  _ctx->seek.call_state.error_msg = copy_str(error_msg);
   _ctx->seek.call_state.done = true;
 }
 
 void read_done(void *ctx, int64_t length, char *error_msg) {
   context *_ctx = (context *)ctx;
   _ctx->read.call_state.bytes_read = length;
-  _ctx->read.call_state.error_msg = error_msg;
+  _ctx->read.call_state.error_msg = copy_str(error_msg);
   _ctx->read.call_state.done = true;
 }
 
 void write_done(void *ctx, char *error_msg) {
   context *_ctx = (context *)ctx;
-  _ctx->write.call_state.error_msg = error_msg;
+  _ctx->write.call_state.error_msg = copy_str(error_msg);
   _ctx->write.call_state.done = true;
 }
 
@@ -194,6 +202,17 @@ void free_context(context *ctx) {
     debugf("Trying to free a null context. ctx:%p", ctx);
     abort();
   }
+}
+
+client_config_t new_config(const char *app_id, const char *transit_relay_url,
+                           const char *rendezvous_url,
+                           int32_t passphrase_length) {
+  return (client_config_t){
+      .app_id = copy_str(app_id),
+      .transit_relay_url = copy_str(transit_relay_url),
+      .rendezvous_url = copy_str(rendezvous_url),
+      .passphrase_length = passphrase_length,
+  };
 }
 
 wrapped_context_t *new_wrapped_context(client_context_t clientCtx,
@@ -227,13 +246,8 @@ wrapped_context_t *async_ClientSendText(char *app_id, char *transit_relay_url,
   };
 
   wrapped_context_t *wctx = new_wrapped_context(
-      ctx, (client_config_t){
-               .app_id = app_id,
-               .transit_relay_url = transit_relay_url,
-               .rendezvous_url = rendezvous_url,
-               .passphrase_length = passphrase_component_length,
-           });
-
+      ctx, new_config(app_id, transit_relay_url, rendezvous_url,
+                      passphrase_component_length));
   ClientSendText(wctx, msg);
   return wctx;
 }
@@ -258,12 +272,8 @@ async_ClientSendFile(char *app_id, char *transit_relay_url,
 
   ctx->read.args.context = ctx;
   wrapped_context_t *wctx = new_wrapped_context(
-      ctx, (client_config_t){
-               .app_id = app_id,
-               .transit_relay_url = transit_relay_url,
-               .rendezvous_url = rendezvous_url,
-               .passphrase_length = passphrase_component_length,
-           });
+      ctx, new_config(app_id, transit_relay_url, rendezvous_url,
+                      passphrase_component_length));
   ClientSendFile(wctx, file_name);
   return wctx;
 }
@@ -279,12 +289,8 @@ wrapped_context_t *async_ClientRecvText(char *app_id, char *transit_relay_url,
   };
 
   wrapped_context_t *wctx = new_wrapped_context(
-      ctx, (client_config_t){
-               .app_id = app_id,
-               .transit_relay_url = transit_relay_url,
-               .rendezvous_url = rendezvous_url,
-               .passphrase_length = passphrase_component_length,
-           });
+      ctx, new_config(app_id, transit_relay_url, rendezvous_url,
+                      passphrase_component_length));
   ClientRecvText(wctx, code);
 
   return wctx;
@@ -307,12 +313,8 @@ wrapped_context_t *async_ClientRecvFile(
   ctx->write.args.context = ctx;
 
   wrapped_context_t *wctx = new_wrapped_context(
-      ctx, (client_config_t){
-               .app_id = app_id,
-               .transit_relay_url = transit_relay_url,
-               .rendezvous_url = rendezvous_url,
-               .passphrase_length = passphrase_component_length,
-           });
+      ctx, new_config(app_id, transit_relay_url, rendezvous_url,
+                      passphrase_component_length));
   ClientRecvFile(wctx, code);
   return wctx;
 }
