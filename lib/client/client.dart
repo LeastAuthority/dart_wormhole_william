@@ -44,18 +44,25 @@ class ClientError {
   }
 }
 
+void defaultErrorHandler(ClientError error) {
+  print("Error: ${error.errorCode}, ${error.error}");
+}
+
 extension ResultHandling<T> on Completer<T> {
   void handleResult(dynamic result, Pointer<Void> context,
-      NativeClient nativeClient, T Function(CallbackResult) success) {
+      NativeClient nativeClient, T Function(CallbackResult) success,
+      {void Function(ClientError) failure = defaultErrorHandler}) {
     if (result is int) {
       var callbackResult = Pointer<CallbackResult>.fromAddress(result);
 
       if (callbackResult.ref.errorCode != 0) {
-        this.completeError(ClientError(
+        final error = ClientError(
             callbackResult.ref.errorString == nullptr
                 ? "Unknown error"
                 : callbackResult.ref.errorString.toDartString(),
-            callbackResult.ref.errorCode));
+            callbackResult.ref.errorCode);
+        this.completeError(error);
+        failure(error);
       } else {
         this.complete(success(callbackResult.ref));
       }
@@ -248,6 +255,7 @@ class Client {
       [void Function(dynamic) optProgressFunc = defaultProgressHandler]) {
     final done = Completer<CallbackResult>();
     final destinationFile = Completer<IOSink>();
+    final pendingDownload = Completer<PendingDownload>();
     late final Pointer<Void> context;
 
     final resultPort = ReceivePort()
@@ -257,6 +265,8 @@ class Client {
             file.flush().then((dynamic v) => {file.close()});
           });
           return callbackResult;
+        }, failure: (error) {
+          pendingDownload.completeError(error);
         });
       });
 
@@ -264,8 +274,6 @@ class Client {
       ..listen((message) {
         (optProgressFunc)(message);
       });
-
-    final pendingDownload = Completer<PendingDownload>();
 
     final metadataPort = ReceivePort()
       ..listen((dynamic result) {

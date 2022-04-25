@@ -3,8 +3,6 @@ import 'dart:io' show Platform;
 
 import 'package:ffi/ffi.dart';
 
-import 'c_structs.dart';
-
 const ErrCodeSuccess = 0;
 const ErrCodeSendFileError = 1;
 const ErrCodeReceiveFileError = 2;
@@ -12,6 +10,7 @@ const ErrCodeSendTextError = 3;
 const ErrCodeReceiveTextError = 4;
 const ErrCodeTransferRejected = 5;
 const ErrCodeTransferCancelled = 6;
+const ErrCodeWrongCode = 7;
 
 typedef InitDartApiNative = IntPtr Function(Pointer<Void>);
 typedef InitDartApi = int Function(Pointer<Void>);
