@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:ffi';
-import 'dart:io';
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
-import 'package:path/path.dart' as path;
 
 import 'c_structs.dart';
+import 'file.dart';
 import 'native_client.dart';
 
 typedef CancelFunc = void Function();
@@ -146,13 +145,13 @@ class Client {
     }
   }
 
-  static int seekf(RandomAccessFile openFile, int offset, int whence) {
+  static Future<int> seekf(File openFile, int offset, int whence) async {
     const SeekStart = 0;
     const SeekCurrent = 1;
     const SeekEnd = 2;
 
-    final position = openFile.positionSync();
-    final int length = openFile.lengthSync();
+    final position = await openFile.getPosition();
+    final int length = (await openFile.metadata()).fileSize!;
     var newPosition;
 
     switch (whence) {
@@ -168,7 +167,7 @@ class Client {
     }
 
     if (newPosition < length && newPosition >= 0) {
-      openFile.setPositionSync(newPosition);
+      await openFile.setPosition(newPosition);
       return newPosition;
     } else {
       return position;
@@ -177,28 +176,27 @@ class Client {
 
   Future<SendResult> sendFile(File file,
       [void Function(dynamic) optProgressFunc = defaultProgressHandler]) async {
-    final fileName = path.basename(file.path);
+    final fileName = (await file.metadata()).fileName!;
     final done = Completer<CallbackResult>();
     late final Pointer<Void> context;
 
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, context, _native, (callbackResult) {
+          file.close();
           return callbackResult;
         });
       });
 
     final progressPort = ReceivePort()..listen(optProgressFunc);
 
-    final openFile = file.openSync();
-
     final readCalls = ReceivePort()
-      ..listen((dynamic message) {
+      ..listen((dynamic message) async {
         if (message is int) {
           Pointer<ReadArgs> args = Pointer.fromAddress(message);
           try {
-            final bytesRead = openFile
-                .readIntoSync(args.ref.buffer.asTypedList(args.ref.length));
+            final bytesRead =
+                await file.read(args.ref.buffer.asTypedList(args.ref.length));
             _native.readDone(args.ref.context, bytesRead, null);
           } catch (error) {
             _native.readDone(args.ref.context, -1, error.toString());
@@ -207,12 +205,12 @@ class Client {
       });
 
     final seekCalls = ReceivePort()
-      ..listen((dynamic message) {
+      ..listen((dynamic message) async {
         if (message is int) {
           Pointer<SeekArgs> args = Pointer.fromAddress(message);
           try {
             final newOffset =
-                seekf(openFile, args.ref.newOffset, args.ref.whence);
+                await seekf(file, args.ref.newOffset, args.ref.whence);
             _native.seekDone(args.ref.context, newOffset, null);
           } catch (error) {
             _native.seekDone(args.ref.context, -1, error.toString());
@@ -254,15 +252,15 @@ class Client {
   Future<ReceiveFileResult> recvFile(String code,
       [void Function(dynamic) optProgressFunc = defaultProgressHandler]) {
     final done = Completer<CallbackResult>();
-    final destinationFile = Completer<IOSink>();
+    final destinationFile = Completer<File>();
     final pendingDownload = Completer<PendingDownload>();
     late final Pointer<Void> context;
 
     final resultPort = ReceivePort()
       ..listen((dynamic result) {
         done.handleResult(result, context, _native, (callbackResult) {
-          destinationFile.future.then((file) {
-            file.flush().then((dynamic v) => {file.close()});
+          destinationFile.future.then((file) async {
+            await file.close();
           });
           return callbackResult;
         }, failure: (error) {
@@ -282,8 +280,7 @@ class Client {
           pendingDownload.complete(PendingDownload(
               received.ref.size, received.ref.fileName.toDartString(),
               (File destination) {
-            destinationFile
-                .complete(destination.openWrite(mode: FileMode.append));
+            destinationFile.complete(destination);
             _native.acceptDownload(context);
             return () {
               _native.cancelTransfer(context);
@@ -299,9 +296,8 @@ class Client {
         if (msg is int) {
           Pointer<WriteArgs> args = Pointer.fromAddress(msg);
           try {
-            await destinationFile.future.then((sink) async {
-              sink.add(args.ref.buffer.asTypedList(args.ref.length));
-              await sink.flush();
+            await destinationFile.future.then((file) async {
+              await file.write(args.ref.buffer.asTypedList(args.ref.length));
             });
             _native.writeDone(args.ref.context, null);
           } catch (error) {
