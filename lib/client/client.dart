@@ -48,9 +48,9 @@ void defaultErrorHandler(ClientError error) {
 }
 
 extension ResultHandling<T> on Completer<T> {
-  void handleResult(dynamic result, Pointer<Void> context,
-      NativeClient nativeClient, T Function(CallbackResult) success,
-      {void Function(ClientError) failure = defaultErrorHandler}) {
+  Future<void> handleResult(dynamic result, Pointer<Void> context,
+      NativeClient nativeClient, Future<T> Function(CallbackResult) success,
+      {void Function(ClientError) failure = defaultErrorHandler}) async {
     if (result is int) {
       var callbackResult = Pointer<CallbackResult>.fromAddress(result);
 
@@ -90,7 +90,7 @@ class Client {
 
     final resultPort = ReceivePort()
       ..listen((dynamic result) {
-        done.handleResult(result, context, _native, (callbackResult) {
+        done.handleResult(result, context, _native, (callbackResult) async {
           return callbackResult;
         });
       });
@@ -126,7 +126,7 @@ class Client {
 
     final resultPort = ReceivePort()
       ..listen((dynamic result) {
-        done.handleResult(result, context, _native, (callbackResult) {
+        done.handleResult(result, context, _native, (callbackResult) async {
           return callbackResult.receivedText.toDartString();
         });
       });
@@ -182,8 +182,8 @@ class Client {
 
     final rxPort = ReceivePort()
       ..listen((dynamic result) {
-        done.handleResult(result, context, _native, (callbackResult) {
-          file.close();
+        done.handleResult(result, context, _native, (callbackResult) async {
+          await file.close();
           return callbackResult;
         });
       });
@@ -257,9 +257,10 @@ class Client {
     late final Pointer<Void> context;
 
     final resultPort = ReceivePort()
-      ..listen((dynamic result) {
-        done.handleResult(result, context, _native, (callbackResult) {
-          destinationFile.future.then((file) async {
+      ..listen((dynamic result) async {
+        await done.handleResult(result, context, _native,
+            (callbackResult) async {
+          await destinationFile.future.then((file) async {
             await file.close();
           });
           return callbackResult;
