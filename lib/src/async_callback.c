@@ -88,8 +88,13 @@ int64_t init_dart_api_dl(void *data) { return Dart_InitializeApiDL(data); }
 char *copy_str(const char *str) {
   if (str == NULL)
     return NULL;
-  char *copy = malloc(strlen(str) + 1);
-  strcpy(copy, str);
+  size_t len = strlen(str) + 1;
+  char *copy = malloc(len);
+  if (copy == NULL) {
+    abort();
+    return NULL;
+  }
+  strncpy(copy, str, len);
   return copy;
 }
 
@@ -229,7 +234,8 @@ wrapped_context_t *new_wrapped_context(client_context_t clientCtx,
                                        .write = write_callback,
                                        .seek = seek_callback,
                                        .read = read_callback,
-                                       .free_client_ctx = free_context}};
+                                       .free_client_ctx = free_context,
+                                       .oom = abort}};
   return wctx;
 }
 
@@ -239,6 +245,10 @@ wrapped_context_t *async_ClientSendText(char *app_id, char *transit_relay_url,
                                         char *msg, int64_t result_port_id,
                                         int64_t codegen_result_port_id) {
   context *ctx = (context *)(malloc(sizeof(context)));
+  if (ctx == NULL) {
+    abort();
+    return NULL;
+  }
   *ctx = (context){
       .codegen_result_port_id = codegen_result_port_id,
       .result_port_id = result_port_id,
