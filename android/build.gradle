@@ -1,4 +1,4 @@
-group 'com.example.dart_wormhole_william'
+group 'com.leastauthority.dart_wormhole_william'
 version '1.0-SNAPSHOT'
 
 buildscript {

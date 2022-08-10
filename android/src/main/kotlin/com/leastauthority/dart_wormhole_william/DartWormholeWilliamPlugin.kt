@@ -1,4 +1,4 @@
-package com.example.dart_wormhole_william
+package com.leastauthority.dart_wormhole_william
 
 import androidx.annotation.NonNull
 

@@ -1,5 +1,5 @@
 name: dart_wormhole_william
-description: A new flutter plugin project.
+description: Dart plugin for flutter file transfer app.
 version: 0.0.1
 homepage:
 
@@ -28,7 +28,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: com.example.dart_wormhole_william
+        package: com.leastauthority.dart_wormhole_william
         pluginClass: DartWormholeWilliamPlugin
       linux:
         pluginClass: DartWormholeWilliamPlugin
