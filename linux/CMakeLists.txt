@@ -26,7 +26,6 @@ target_include_directories(${PLUGIN_LIB}
                            INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(${PLUGIN_LIB} PRIVATE flutter)
 target_link_libraries(${PLUGIN_LIB} PRIVATE PkgConfig::GTK)
-target_link_libraries(${PLUGIN_LIB} PRIVATE bindings)
 
 set_target_properties(${PLUGIN_LIB} PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE)
 
