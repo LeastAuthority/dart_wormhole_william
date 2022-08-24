@@ -1,5 +1,5 @@
 name: dart_wormhole_william
-description: Dart plugin for flutter file transfer app.
+description: Dart bindings for wormhole-william.
 version: 0.0.1
 homepage:
 
