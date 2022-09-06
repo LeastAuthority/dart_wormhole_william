@@ -34,7 +34,7 @@ download.done.then((result) {
 ## Building
 
 Currently this plugin is only buildable as part of the build for this
-[app](https://github.com/LeastAuthority/flutter_wormhole_gui).
+[app](https://github.com/LeastAuthority/destiny).
 
 ## Known Issues
 
