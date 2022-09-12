@@ -37,7 +37,8 @@ class Metadata {
   String? fileName;
   int? fileSize;
   String? type;
-  Metadata({this.fileName, this.fileSize, this.type});
+  String? parentPath;
+  Metadata({this.fileName, this.fileSize, this.type, this.parentPath});
 }
 
 typedef GetMetadata = Future<Metadata> Function();
