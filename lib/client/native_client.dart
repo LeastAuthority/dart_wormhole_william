@@ -15,7 +15,7 @@ const ErrCodeTransferCancelledByReceiver = 8;
 const ErrCodeTransferCancelledBySender = 9;
 const ErrCodeConnectionRefused = 10;
 const ErrCodeFailedToGetClient = 11;
-const ErrCodeCCodeGenerationFailed = 12;
+const ErrCodeGenerationFailed = 12;
 
 typedef InitDartApiNative = IntPtr Function(Pointer<Void>);
 typedef InitDartApi = int Function(Pointer<Void>);
