@@ -162,11 +162,11 @@ class Client {
         newPosition = position + offset;
         break;
       case SeekEnd:
-        newPosition = length - offset - 1;
+        newPosition = length - offset;
         break;
     }
 
-    if (newPosition < length && newPosition >= 0) {
+    if (newPosition <= length && newPosition >= 0) {
       await openFile.setPosition(newPosition);
       return newPosition;
     } else {
