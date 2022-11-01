@@ -371,9 +371,11 @@ class NativeClient {
     final String baseName;
 
     if (Platform.isMacOS) {
-      baseName = "lib$libraryName.dylib";
+      baseName = "lib$libraryName.a";
     } else if (Platform.isWindows) {
       baseName = "$libraryName.dll";
+    } else if (Platform.isIOS) {
+      baseName = "lib$libraryName.a";
     } else {
       baseName = "lib$libraryName.so";
     }
