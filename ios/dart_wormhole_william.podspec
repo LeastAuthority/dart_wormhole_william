@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.summary          = 'A new flutter plugin project.'
   s.prepare_command = <<-CMD
 			  cd build
-			  cmake --trace ../
+			  cmake --trace ../ 2>&1 | tee logs.txt
 			  make
 		  CMD
   s.description      = <<-DESC

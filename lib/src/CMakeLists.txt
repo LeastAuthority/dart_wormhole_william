@@ -10,9 +10,15 @@ endif()
 
 set(DART_INCLUDE ${FLUTTER_ROOT}/bin/cache/dart-sdk/include)
 
-add_library(
-  bindings SHARED ${DART_WORMHOLE_WILLIAM_C_DIR}/async_callback.c
-  ${DART_INCLUDE}/dart_api_dl.c)
+if (${CMAKE_SYSTEM_NAME} STREQUAL "iOS")
+  add_library(
+    bindings STATIC ${DART_WORMHOLE_WILLIAM_C_DIR}/async_callback.c
+    ${DART_INCLUDE}/dart_api_dl.c)
+else ()
+  add_library(
+    bindings SHARED ${DART_WORMHOLE_WILLIAM_C_DIR}/async_callback.c
+    ${DART_INCLUDE}/dart_api_dl.c)
+endif ()
 
 target_include_directories(
   bindings
