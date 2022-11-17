@@ -1,14 +1,14 @@
 #
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
 # Run `pod lib lint dart_wormhole_william.podspec` to validate before publishing.
-#
+#2>&1 | tee logs.txt
 Pod::Spec.new do |s|
   s.name             = 'dart_wormhole_william'
   s.version          = '0.0.1'
   s.summary          = 'A new flutter plugin project.'
   s.prepare_command = <<-CMD
 			  cd build
-			  cmake --trace ../ 2>&1 | tee logs.txt
+			  cmake --trace ../ 
 			  make
 		  CMD
   s.description      = <<-DESC

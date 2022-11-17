@@ -23,7 +23,7 @@ set(CMAKE_SYSTEM_NAME "iOS")
 
 
 
-add_library(${PLUGIN_LIB} SHARED "dart_wormhole_william_plugin.cc")
+add_library(${PLUGIN_LIB} STATIC "dart_wormhole_william_plugin.cc")
 include(${DART_WORMHOLE_WILLIAM_C_DIR}/../../CMakeLists.txt)
 include(${DART_WORMHOLE_WILLIAM_C_DIR}/CMakeLists.txt)
 
