@@ -2,6 +2,7 @@ import 'dart:ffi';
 import 'dart:io' show Platform;
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 
 const ErrCodeSuccess = 0;
 const ErrCodeSendFileError = 1;
@@ -145,8 +146,14 @@ class NativeClient {
   late final Config config;
 
   NativeClient({Config? config}) {
-    _wormholeWilliamLib = DynamicLibrary.open(libName("wormhole_william"));
-    _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
+    if (Platform.isIOS) {
+      _asyncCallbackLib = DynamicLibrary.process();
+      _wormholeWilliamLib = DynamicLibrary.process();
+    } else {
+      _wormholeWilliamLib = DynamicLibrary.open(libName("wormhole_william"));
+      _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
+    }
+
     _initDartApi(NativeApi.initializeApiDLData);
 
     this.config = config ?? Config();
@@ -374,8 +381,8 @@ class NativeClient {
       baseName = "lib$libraryName.a";
     } else if (Platform.isWindows) {
       baseName = "$libraryName.dll";
-    } else if (Platform.isIOS) {
-      baseName = "lib$libraryName.a";
+      //} else if (Platform.isIOS) {
+      //  baseName = "lib$libraryName.a";
     } else {
       baseName = "lib$libraryName.so";
     }

@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.summary          = 'A new flutter plugin project.'
   s.prepare_command = <<-CMD
 			  cd build
-			  cmake --trace ../ 
+			  CMAKE_SYSTEM_NAME=iOS cmake -D CMAKE_SYSTEM_NAME=iOS --trace ../ 
 			  make
 		  CMD
   s.description      = <<-DESC
@@ -26,4 +26,6 @@ A new flutter plugin project.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
   s.user_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
   s.swift_version = '5.0'
+
+  #  'OTHER_LDFLAGS' => '-ldart_wormhole_william'
 end

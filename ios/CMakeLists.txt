@@ -7,7 +7,20 @@ set(PLUGIN_LIB ${PLUGIN_NAME}_plugin)
 
 find_package(PkgConfig REQUIRED)
 
+# ld: in /Users/donataspuidokas/Development/destiny/dart_wormhole_william/ios/build/libwormhole_william.a(go.o), building for iOS, but linking in object file built for macOS, file '/Users/donataspuidokas/Development/destiny/dart_wormhole_william/ios/build/libwormhole_william.a' for architecture arm64
+# ld: in /Users/donataspuidokas/Development/destiny/dart_wormhole_william/ios/build/libwormhole_william.a(go.o), 
+# building for iOS, but linking in object file built for macOS, file 
+# '/Users/donataspuidokas/Development/destiny/dart_wormhole_william/ios/build/libwormhole_william.a' for architecture arm64
+
+
+SET (SDKPATH "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk")
+SET (CMAKE_OSX_SYSROOT "${SDKPATH}")
+set(CMAKE_OSX_ARCHITECTURES "arm64")
+
+
 set(GOOS ios)
+
+
 
 if(dart_wormhole_william_IS_TOP_LEVEL)
   set(WORMHOLE_WILLIAM_GO_DIR ${CMAKE_SOURCE_DIR}/../wormhole-william)

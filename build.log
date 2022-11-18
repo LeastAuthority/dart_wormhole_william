@@ -1,0 +1,91 @@
+[  +45 ms] executing: sysctl hw.optional.arm64
+[  +12 ms] Exit code 0 from: sysctl hw.optional.arm64
+[        ] hw.optional.arm64: 1
+[   +2 ms] executing: [/Users/donataspuidokas/Apps/flutter/] git -c log.showSignature=false log -n 1 --pretty=format:%H
+[  +16 ms] Exit code 0 from: git -c log.showSignature=false log -n 1 --pretty=format:%H
+[        ] e3c29ec00c9c825c891d75054c63fcc46454dca1
+[        ] executing: [/Users/donataspuidokas/Apps/flutter/] git tag --points-at e3c29ec00c9c825c891d75054c63fcc46454dca1
+[  +48 ms] Exit code 0 from: git tag --points-at e3c29ec00c9c825c891d75054c63fcc46454dca1
+[        ] 3.3.2
+[  +23 ms] executing: [/Users/donataspuidokas/Apps/flutter/] git rev-parse --abbrev-ref --symbolic @{upstream}
+[   +9 ms] Exit code 0 from: git rev-parse --abbrev-ref --symbolic @{upstream}
+[        ] origin/stable
+[        ] executing: [/Users/donataspuidokas/Apps/flutter/] git ls-remote --get-url origin
+[   +9 ms] Exit code 0 from: git ls-remote --get-url origin
+[        ] https://github.com/flutter/flutter.git
+[  +25 ms] executing: [/Users/donataspuidokas/Apps/flutter/] git rev-parse --abbrev-ref HEAD
+[   +9 ms] Exit code 0 from: git rev-parse --abbrev-ref HEAD
+[        ] stable
+[   +3 ms] executing: sw_vers -productName
+[  +14 ms] Exit code 0 from: sw_vers -productName
+[        ] macOS
+[        ] executing: sw_vers -productVersion
+[  +19 ms] Exit code 0 from: sw_vers -productVersion
+[   +3 ms] 13.0.1
+[        ] executing: sw_vers -buildVersion
+[  +13 ms] Exit code 0 from: sw_vers -buildVersion
+[        ] 22A400
+[        ] executing: uname -m
+[   +3 ms] Exit code 0 from: uname -m
+[        ] arm64
+[  +26 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[   +2 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +28 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[   +6 ms] "flutter ios" took 49ms.
+[  +10 ms] Target file "lib/main_la.dart" not found.
+[        ] 
+           #0      FlutterCommand.validateCommand (package:flutter_tools/src/runner/flutter_command.dart:1506:9)
+           #1      FlutterCommand.verifyThenRunCommand (package:flutter_tools/src/runner/flutter_command.dart:1330:11)
+           <asynchronous suspension>
+           #2      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1209:27)
+           <asynchronous suspension>
+           #3      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)
+           <asynchronous suspension>
+           #4      CommandRunner.runCommand (package:args/command_runner.dart:209:13)
+           <asynchronous suspension>
+           #5      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:281:9)
+           <asynchronous suspension>
+           #6      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)
+           <asynchronous suspension>
+           #7      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:229:5)
+           <asynchronous suspension>
+           #8      run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:62:9)
+           <asynchronous suspension>
+           #9      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)
+           <asynchronous suspension>
+           #10     main (package:flutter_tools/executable.dart:91:3)
+           <asynchronous suspension>
+
+
+[ +119 ms] ensureAnalyticsSent: 118ms
+[        ] Running shutdown hooks
+[        ] Shutdown hooks complete
+[        ] exiting with code 1
