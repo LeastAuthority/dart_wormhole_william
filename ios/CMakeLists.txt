@@ -13,9 +13,9 @@ find_package(PkgConfig REQUIRED)
 # '/Users/donataspuidokas/Development/destiny/dart_wormhole_william/ios/build/libwormhole_william.a' for architecture arm64
 
 
-SET (SDKPATH "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk")
-SET (CMAKE_OSX_SYSROOT "${SDKPATH}")
-set(CMAKE_OSX_ARCHITECTURES "arm64")
+#SET (SDKPATH "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk")
+#SET (CMAKE_OSX_SYSROOT "${SDKPATH}")
+#set(CMAKE_OSX_ARCHITECTURES "arm64")
 
 
 set(GOOS ios)

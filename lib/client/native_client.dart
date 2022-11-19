@@ -143,12 +143,14 @@ class Config {
 class NativeClient {
   late final DynamicLibrary _wormholeWilliamLib;
   late final DynamicLibrary _asyncCallbackLib;
+
   late final Config config;
 
   NativeClient({Config? config}) {
     if (Platform.isIOS) {
-      _asyncCallbackLib = DynamicLibrary.process();
-      _wormholeWilliamLib = DynamicLibrary.process();
+      _asyncCallbackLib = DynamicLibrary.executable();
+      _wormholeWilliamLib = DynamicLibrary.executable();
+      //_asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
     } else {
       _wormholeWilliamLib = DynamicLibrary.open(libName("wormhole_william"));
       _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
@@ -378,11 +380,11 @@ class NativeClient {
     final String baseName;
 
     if (Platform.isMacOS) {
-      baseName = "lib$libraryName.a";
+      baseName = "lib$libraryName.dylib";
     } else if (Platform.isWindows) {
       baseName = "$libraryName.dll";
-      //} else if (Platform.isIOS) {
-      //  baseName = "lib$libraryName.a";
+    } else if (Platform.isIOS) {
+      baseName = "lib$libraryName.a";
     } else {
       baseName = "lib$libraryName.so";
     }
