@@ -10,6 +10,13 @@ endif()
 
 set(DART_INCLUDE ${FLUTTER_ROOT}/bin/cache/dart-sdk/include)
 
+# if(PLATFORM_NAME STREQUAL "iphonesimulator")
+#   set(CMAKE_OSX_ARCHITECTURES "x86_64")
+# else()
+#   set(CMAKE_OSX_ARCHITECTURES "arm64")
+# endif()
+#set(CMAKE_OSX_ARCHITECTURES "x86_64")
+
 if (${CMAKE_SYSTEM_NAME} STREQUAL "iOS")
   add_library(
     bindings 

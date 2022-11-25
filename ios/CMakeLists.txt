@@ -18,9 +18,6 @@ find_package(PkgConfig REQUIRED)
 #set(CMAKE_OSX_ARCHITECTURES "arm64")
 
 
-set(GOOS ios)
-
-
 
 if(dart_wormhole_william_IS_TOP_LEVEL)
   set(WORMHOLE_WILLIAM_GO_DIR ${CMAKE_SOURCE_DIR}/../wormhole-william)
@@ -31,7 +28,17 @@ else()
   set(DART_WORMHOLE_WILLIAM_C_DIR ${CMAKE_SOURCE_DIR}/../../${PLUGIN_NAME}/lib/src)
 endif()
 
+set(GOOS ios)
+
+# if(PLATFORM_NAME STREQUAL "iphonesimulator")
+#   set(GOARCH "amd64")
+#   set(CMAKE_OSX_ARCHITECTURES "x86_64")
+# else()
+#   set(GOARCH "arm64")
+# endif()
 set(GOARCH "arm64")
+#set(CMAKE_OSX_ARCHITECTURES "x86_64")
+
 set(CMAKE_SYSTEM_NAME "iOS")
 
 
