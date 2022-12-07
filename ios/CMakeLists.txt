@@ -7,18 +7,6 @@ set(PLUGIN_LIB ${PLUGIN_NAME}_plugin)
 
 find_package(PkgConfig REQUIRED)
 
-# ld: in /Users/donataspuidokas/Development/destiny/dart_wormhole_william/ios/build/libwormhole_william.a(go.o), building for iOS, but linking in object file built for macOS, file '/Users/donataspuidokas/Development/destiny/dart_wormhole_william/ios/build/libwormhole_william.a' for architecture arm64
-# ld: in /Users/donataspuidokas/Development/destiny/dart_wormhole_william/ios/build/libwormhole_william.a(go.o), 
-# building for iOS, but linking in object file built for macOS, file 
-# '/Users/donataspuidokas/Development/destiny/dart_wormhole_william/ios/build/libwormhole_william.a' for architecture arm64
-
-
-#SET (SDKPATH "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk")
-#SET (CMAKE_OSX_SYSROOT "${SDKPATH}")
-#set(CMAKE_OSX_ARCHITECTURES "arm64")
-
-
-
 if(dart_wormhole_william_IS_TOP_LEVEL)
   set(WORMHOLE_WILLIAM_GO_DIR ${CMAKE_SOURCE_DIR}/../wormhole-william)
   set(DART_WORMHOLE_WILLIAM_C_DIR ${CMAKE_SOURCE_DIR}/../lib/src)
@@ -30,17 +18,9 @@ endif()
 
 set(GOOS ios)
 
-# if(PLATFORM_NAME STREQUAL "iphonesimulator")
-#   set(GOARCH "amd64")
-#   set(CMAKE_OSX_ARCHITECTURES "x86_64")
-# else()
-#   set(GOARCH "arm64")
-# endif()
 set(GOARCH "arm64")
-#set(CMAKE_OSX_ARCHITECTURES "x86_64")
 
 set(CMAKE_SYSTEM_NAME "iOS")
-
 
 add_library(${PLUGIN_LIB} STATIC "dart_wormhole_william_plugin.cc")
 include(${DART_WORMHOLE_WILLIAM_C_DIR}/../../CMakeLists.txt)

@@ -5,14 +5,14 @@
 Pod::Spec.new do |s|
   s.name             = 'dart_wormhole_william'
   s.version          = '0.0.1'
-  s.summary          = 'Flutter plugin for iOS.'
+  s.summary          = 'Flutter Wormhole-William plugin for iOS'
   s.prepare_command = <<-CMD
 			  cd build
 			  CMAKE_SYSTEM_NAME=iOS cmake -D CMAKE_SYSTEM_NAME=iOS --trace ../ 
 			  make
 		  CMD
   s.description      = <<-DESC
-A new flutter plugin project.
+Flutter Wormhole-William plugin for iOS
                        DESC
   s.homepage         = 'https://github.com/LeastAuthority/destiny/'
   s.license          = { :file => '../LICENSE' }
@@ -30,6 +30,5 @@ A new flutter plugin project.
     'OTHER_LDFLAGS[sdk=iphonesimulator*]' => "-force_load $(PODS_ROOT)/../../dart_wormhole_william/ios/build/libbindings.a $(PODS_ROOT)/../../dart_wormhole_william/ios/build/libdart_wormhole_william_plugin.a $(PODS_ROOT)/../../dart_wormhole_william/ios/build/libwormhole_william.a",
   
   }
-  #s.user_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64' }
   s.swift_version = '5.0'
 end

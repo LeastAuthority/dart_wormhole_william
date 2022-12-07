@@ -147,10 +147,10 @@ class NativeClient {
   late final Config config;
 
   NativeClient({Config? config}) {
+    // iOS requires static libraries to load
     if (Platform.isIOS) {
       _asyncCallbackLib = DynamicLibrary.executable();
       _wormholeWilliamLib = DynamicLibrary.executable();
-      //_asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
     } else {
       _wormholeWilliamLib = DynamicLibrary.open(libName("wormhole_william"));
       _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));

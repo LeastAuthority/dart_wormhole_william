@@ -20,5 +20,4 @@ FLUTTER_PLUGIN_EXPORT void DartWormholeWilliamPluginRegisterWithRegistrar(
 }  // extern "C"
 #endif
 
-
 #endif  // FLUTTER_PLUGIN_DART_WORMHOLE_WILLIAM_PLUGIN_H_
