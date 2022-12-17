@@ -7,6 +7,9 @@
 
 build/
 
+/.idea
+*.iml
+
 android/.classpath
 android/.cxx/
 android/.project
