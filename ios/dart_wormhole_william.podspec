@@ -7,6 +7,7 @@ Pod::Spec.new do |s|
   s.version          = '0.0.1'
   s.summary          = 'Flutter Wormhole-William plugin for iOS'
   s.prepare_command = <<-CMD
+              mkdir build
 			  cd build
 			  CMAKE_SYSTEM_NAME=iOS cmake -D CMAKE_SYSTEM_NAME=iOS --trace ../ 
 			  make
