@@ -383,8 +383,8 @@ class NativeClient {
       baseName = "lib$libraryName.dylib";
     } else if (Platform.isWindows) {
       baseName = "$libraryName.dll";
-    } else if (Platform.isIOS) {
-      baseName = "lib$libraryName.a";
+      //} else if (Platform.isIOS) {
+      //  baseName = "lib$libraryName.a";
     } else {
       baseName = "lib$libraryName.so";
     }
