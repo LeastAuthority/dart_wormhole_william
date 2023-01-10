@@ -11,8 +11,11 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
   set(BUILDMODE c-shared)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "iOS")
   set(WORMHOLE_WILLIAM_LIB ${CMAKE_CURRENT_BINARY_DIR}/libwormhole_william.a)
-  set(CREATE_HEADER_CMD echo "${WORMHOLE_WILLIAM_HEADER} produced by go build")
-  set(CC_FOR_TARGET "/usr/local/go/misc/ios/clangwrap.sh")
+  set(CREATE_HEADER_CMD cp ${WORMHOLE_WILLIAM_HEADER} ${CMAKE_CURRENT_BINARY_DIR}/$ENV{BUNDLE_PUBLIC_HEADERS_FOLDER_PATH}/libwormhole_william.h)
+  # TODO resolve this script by checking which one exists or using
+  # environment variables.
+  # macports and homebrew place this script in different locations
+  set(CC_FOR_TARGET "/opt/local/lib/go/misc/ios/clangwrap.sh")
   set(BUILDMODE c-archive)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(WORMHOLE_WILLIAM_LIB ${CMAKE_CURRENT_BINARY_DIR}/libwormhole_william.dylib)
@@ -44,7 +47,7 @@ add_custom_command(
     ${EXPORT} GOOS=${GOOS}&&
     ${EXPORT} CC_FOR_TARGET=${CC_FOR_TARGET}&&
     ${EXPORT} CC=${CC_FOR_TARGET}&&
-    go build -buildmode=${BUILDMODE} -o ${WORMHOLE_WILLIAM_LIB} ${WORMHOLE_WILLIAM_C_DIR}
+    ${GOCMD} build -buildmode=${BUILDMODE} -o ${WORMHOLE_WILLIAM_LIB} ${WORMHOLE_WILLIAM_C_DIR}
   COMMAND ${CREATE_HEADER_CMD}
   USES_TERMINAL
   DEPENDS ${WORMHOLE_WILLIAM_SRC_FILES}
