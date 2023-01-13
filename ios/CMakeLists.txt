@@ -19,16 +19,16 @@ endif()
 set(GOOS ios)
 
 # TODO remove these debug logs when done
-get_cmake_property(_variableNames VARIABLES)
-list (SORT _variableNames)
-foreach (_variableName ${_variableNames})
-    message(STATUS "fooy ${_variableName}=${${_variableName}}")
-endforeach()
+# get_cmake_property(_variableNames VARIABLES)
+# list (SORT _variableNames)
+# foreach (_variableName ${_variableNames})
+#     message(STATUS "fooy ${_variableName}=${${_variableName}}")
+# endforeach()
 
 
 string(REPLACE " " ";" $ENV{ARCHS_STANDARD} CMAKE_OSX_ARCHITECTURES)
 set(CMAKE_SYSTEM_NAME "iOS")
-set(GOARCH $ENV{arch})
+set(GOARCH $ENV{PLATFORM_PREFERRED_ARCH})
 set(SUPPORTED_ARCHS "arm64;amd64")
 
 if(${GOARCH} STREQUAL "x86_64")

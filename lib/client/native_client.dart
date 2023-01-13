@@ -149,8 +149,8 @@ class NativeClient {
   NativeClient({Config? config}) {
     // iOS requires static libraries to load
     if (Platform.isIOS) {
-      _asyncCallbackLib = DynamicLibrary.executable();
       _wormholeWilliamLib = DynamicLibrary.executable();
+      _asyncCallbackLib = DynamicLibrary.process();
     } else {
       _wormholeWilliamLib = DynamicLibrary.open(libName("wormhole_william"));
       _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
@@ -383,8 +383,6 @@ class NativeClient {
       baseName = "lib$libraryName.dylib";
     } else if (Platform.isWindows) {
       baseName = "$libraryName.dll";
-      //} else if (Platform.isIOS) {
-      //  baseName = "lib$libraryName.a";
     } else {
       baseName = "lib$libraryName.so";
     }
