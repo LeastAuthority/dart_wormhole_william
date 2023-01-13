@@ -7,8 +7,8 @@ Pod::Spec.new do |s|
   s.summary          = 'Flutter Wormhole-William plugin for iOS'
 
   s.script_phases = [
-    { :name => 'Helpful for debugging', :script => 'env 2>&1 | tee $CODESIGNING_FOLDER_PATH/buildenv_$PLATFORM_PREFERRED_ARCH.txt', :execution_position => :before_compile },
-    { :name => 'Build project', :script => 'cd $TARGET_BUILD_DIR && mkdir -p $TARGET_BUILD_DIR/Headers && cmake --trace -GXcode -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=$(tr " " ";" <<< $PLATFORM_PREFERRED_ARCH) -DGOCMD=$(which go) -S $PODS_TARGET_SRCROOT && xcodebuild -alltargets && cp -v $TARGET_BUILD_DIR/{libbindings.a,libdart_wormhole_william_plugin.a} $TARGET_BUILD_DIR/libwormhole_william.{h,a} $PODS_CONFIGURATION_BUILD_DIR/',
+    { :name => 'Helpful for debugging', :script => 'env 2>&1 | tee $CODESIGNING_FOLDER_PATH/buildenv_$PLATFORM_PREFERRED_ARCH.txt', :execution_position => :before_compile },    
+    { :name => 'Build project', :script => 'cd $TARGET_BUILD_DIR && mkdir -p $TARGET_BUILD_DIR/Headers && cmake --trace -GXcode -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=$(tr " " ";" <<< $PLATFORM_PREFERRED_ARCH) -DGOCMD=$(which go) -S $PODS_TARGET_SRCROOT && xcodebuild -alltargets -configuration $CONFIGURATION && cp -v $TARGET_BUILD_DIR/$CONFIGURATION-$PLATFORM_NAME/{libbindings.a,libdart_wormhole_william_plugin.a} $TARGET_BUILD_DIR/libwormhole_william.{h,a} $PODS_CONFIGURATION_BUILD_DIR/',
       :output_files => [
         "$TARGET_BUILD_DIR/libbindings.a",
         "$TARGET_BUILD_DIR/libdart_wormhole_william_plugin.a",
@@ -26,9 +26,9 @@ Pod::Spec.new do |s|
   s.author           = { 'Least Authority' => 'destiny@leastauthority.com' }
   s.source           = { :path => '.' }
   s.ios.source_files     = 'Classes/**/*'
-  s.vendored_libraries = "dart_wormhole_william_plugin"
+  #s.vendored_libraries = "dart_wormhole_william_plugin"
   #s.libraries = 'c'
-  s.static_framework = true
+  #s.static_framework = true
   #,'wormhole_william', 'bindings', 'dart_wormhole_william_plugin'
   #s.ios.libraries = 'bindings','dart_wormhole_william_plugin','wormhole_william'
   s.dependency  'Flutter'
@@ -38,10 +38,10 @@ Pod::Spec.new do |s|
   s.platform = :ios
   s.ios.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    'STRIP_STYLE' => 'non-global',
+    #'STRIP_STYLE' => 'non-global',
     #'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64',
     #'OTHER_LDFLAGS' => "-L$(TARGET_BUILD_DIR)/$(CONFIGURATION)-$(PLATFORM_NAME)",
-    'OTHER_LDFLAGS' => "-lwormhole_william -force_load $(PODS_CONFIGURATION_BUILD_DIR)/libbindings.a $(PODS_CONFIGURATION_BUILD_DIR)/libdart_wormhole_william_plugin.a $(PODS_CONFIGURATION_BUILD_DIR)/libwormhole_william.a",
+    'OTHER_LDFLAGS' => "-L$(TARGET_BUILD_DIR)/$(CONFIGURATION)-$(PLATFORM_NAME) -force_load $(PODS_CONFIGURATION_BUILD_DIR)/libbindings.a $(PODS_CONFIGURATION_BUILD_DIR)/libdart_wormhole_william_plugin.a $(PODS_CONFIGURATION_BUILD_DIR)/libwormhole_william.a",
   }
   s.swift_version = '5.0'
 end
