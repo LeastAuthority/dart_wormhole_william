@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
 
   s.script_phases = [
     { :name => 'Helpful for debugging', :script => 'env 2>&1 | tee $CODESIGNING_FOLDER_PATH/buildenv_$PLATFORM_PREFERRED_ARCH.txt', :execution_position => :before_compile },    
-    { :name => 'Build project', :script => 'cd $TARGET_BUILD_DIR && mkdir -p $TARGET_BUILD_DIR/Headers && cmake --trace -GXcode -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=$(tr " " ";" <<< $PLATFORM_PREFERRED_ARCH) -DGOCMD=$(which go) -S $PODS_TARGET_SRCROOT && xcodebuild -alltargets -configuration $CONFIGURATION && cp -v $TARGET_BUILD_DIR/$CONFIGURATION-$PLATFORM_NAME/{libbindings.a,libdart_wormhole_william_plugin.a} $TARGET_BUILD_DIR/libwormhole_william.{h,a} $PODS_CONFIGURATION_BUILD_DIR/',
+    { :name => 'Build project', :script => 'cd $TARGET_BUILD_DIR && mkdir -p $TARGET_BUILD_DIR/Headers && cmake --trace -GXcode -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=$(tr " " ";" <<< $PLATFORM_PREFERRED_ARCH) -DGOCMD=$(which go) -S $PODS_TARGET_SRCROOT && xcodebuild -alltargets -configuration $CONFIGURATION STRIP_STYLE="non-global" && cp -v $TARGET_BUILD_DIR/$CONFIGURATION-$PLATFORM_NAME/{libbindings.a,libdart_wormhole_william_plugin.a} $TARGET_BUILD_DIR/libwormhole_william.{h,a} $PODS_CONFIGURATION_BUILD_DIR/',
       :output_files => [
         "$TARGET_BUILD_DIR/libbindings.a",
         "$TARGET_BUILD_DIR/libdart_wormhole_william_plugin.a",
