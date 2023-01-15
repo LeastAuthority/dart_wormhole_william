@@ -1,3 +1,7 @@
+if(NOT DEFINED ENV{GOROOT})
+  message(FATAL_ERROR "GOROOT environment variable must be defined")
+endif()
+
 set(WORMHOLE_WILLIAM_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${PLATFORM_PREFERRED_ARCH}/libwormhole_william.h)
 set(WORMHOLE_WILLIAM_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(WORMHOLE_WILLIAM_C_DIR ${WORMHOLE_WILLIAM_GO_DIR}/c/)
@@ -15,7 +19,7 @@ elseif (${CMAKE_SYSTEM_NAME} STREQUAL "iOS")
   # TODO resolve this script by checking which one exists or using
   # environment variables.
   # macports and homebrew place this script in different locations
-  set(CC_FOR_TARGET "/usr/local/go/misc/ios/clangwrap.sh")
+  set(CC_FOR_TARGET $ENV{GOROOT}/misc/ios/clangwrap.sh)
   set(BUILDMODE c-archive)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(WORMHOLE_WILLIAM_LIB ${CMAKE_CURRENT_BINARY_DIR}/libwormhole_william.dylib)
