@@ -1,11 +1,7 @@
-if(NOT DEFINED ENV{GOROOT})
-  message(FATAL_ERROR "GOROOT environment variable must be defined")
-endif()
 
 set(WORMHOLE_WILLIAM_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${PLATFORM_PREFERRED_ARCH}/libwormhole_william.h)
 set(WORMHOLE_WILLIAM_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(WORMHOLE_WILLIAM_C_DIR ${WORMHOLE_WILLIAM_GO_DIR}/c/)
-
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
   set(WORMHOLE_WILLIAM_LIB ${CMAKE_CURRENT_BINARY_DIR}/wormhole_william.dll)
@@ -14,12 +10,9 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
   set(CREATE_HEADER_CMD move /y ${OLD_HEADER_PATH} ${NEW_HEADER_PATH})
   set(BUILDMODE c-shared)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "iOS")
-  set(WORMHOLE_WILLIAM_LIB ${CMAKE_CURRENT_BINARY_DIR}/${PLATFORM_PREFERRED_ARCH}/libwormhole_william.a)
+  set(WORMHOLE_WILLIAM_LIB ${CMAKE_CURRENT_BINARY_DIR}/$ENV{PLATFORM_PREFERRED_ARCH}/libwormhole_william.a)
   set(CREATE_HEADER_CMD cp ${WORMHOLE_WILLIAM_HEADER} ${CMAKE_CURRENT_BINARY_DIR}/$ENV{BUNDLE_PUBLIC_HEADERS_FOLDER_PATH}/libwormhole_william.h)
-  # TODO resolve this script by checking which one exists or using
-  # environment variables.
-  # macports and homebrew place this script in different locations
-  set(CC_FOR_TARGET $ENV{GOROOT}/misc/ios/clangwrap.sh)
+  set(CC_FOR_TARGET ${CMAKE_CURRENT_SOURCE_DIR}/clangwrap.sh)
   set(BUILDMODE c-archive)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(WORMHOLE_WILLIAM_LIB ${CMAKE_CURRENT_BINARY_DIR}/libwormhole_william.dylib)
@@ -44,7 +37,7 @@ file(GLOB_RECURSE WORMHOLE_WILLIAM_SRC_FILES
 
 add_custom_command(
   OUTPUT ${WORMHOLE_WILLIAM_LIB} ${WORMHOLE_WILLIAM_HEADER}
-  COMMENT Building wormhole_william shared library
+  COMMENT Building wormhole_william ${BUILDMODE} library for ${GOOS}/${GOARCH} using CC=${CC_FOR_TARGET}
   COMMAND
     ${EXPORT} CGO_ENABLED=1&&
     ${EXPORT} GOARCH=${GOARCH}&&
