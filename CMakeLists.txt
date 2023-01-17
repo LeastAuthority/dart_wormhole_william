@@ -19,7 +19,6 @@ else()
   set(CC_FOR_TARGET $ENV{GOROOT}/misc/ios/clangwrap.sh)
 endif()
   
-  
   set(BUILDMODE c-archive)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(WORMHOLE_WILLIAM_LIB ${CMAKE_CURRENT_BINARY_DIR}/libwormhole_william.dylib)
@@ -46,6 +45,9 @@ file(GLOB_RECURSE WORMHOLE_WILLIAM_SRC_FILES
 find_program(GOCMD go)
 if(NOT GOCMD)
     message(FATAL_ERROR "go executable not found")
+else()
+  # still try to call for go, help to run in CI
+  set(GOCMD go)
 endif()
 
 add_custom_command(
