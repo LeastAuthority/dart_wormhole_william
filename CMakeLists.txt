@@ -46,7 +46,7 @@ find_program(GOCMD go)
 if(NOT GOCMD)
     message(FATAL_ERROR "go executable not found")
 else()
-  # still try to call for go, help to run in CI
+  # still try to call for go, helps to run in CI
   set(GOCMD go)
 endif()
 
