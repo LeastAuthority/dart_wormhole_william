@@ -1,0 +1,28 @@
+name: "Analyze"
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - "main"
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v3"
+        with:
+          submodules: "recursive"
+
+      # Right now it is just informational
+      - name: "Lint"
+        run: "dart analyze"
+
+      - name: "Check outdated packages"
+        run: "dart pub outdated"
+
+  
