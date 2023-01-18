@@ -9,7 +9,7 @@ on:
       - "main"
 
 jobs:
-  android:
+  analyzes:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,6 +24,12 @@ jobs:
       # Requires flutter pub get and flutter sdk
       #- name: "Install dependencies"
       #  run: dart pub get
+
+      - name: "Setup flutter"
+        uses: "subosito/flutter-action@v2.4.0"
+
+      - name: "Fetch via flutter dependencies"
+        run: "flutter pub get"
 
       - name: "Run static analysis"
         run: "dart analyze"
