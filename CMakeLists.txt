@@ -13,10 +13,10 @@ elseif (${CMAKE_SYSTEM_NAME} STREQUAL "iOS")
   set(WORMHOLE_WILLIAM_LIB ${CMAKE_CURRENT_BINARY_DIR}/libwormhole_william.a)
   set(CREATE_HEADER_CMD cp ${WORMHOLE_WILLIAM_HEADER} ${CMAKE_CURRENT_BINARY_DIR}/$ENV{BUNDLE_PUBLIC_HEADERS_FOLDER_PATH}/libwormhole_william.h)
   
-  if(NOT DEFINED ENV{GOROOT})
+  if(NOT DEFINED GOROOT)
     message(FATAL_ERROR "GOROOT environment variable must be defined")
   else()
-    set(CC_FOR_TARGET $ENV{GOROOT}/misc/ios/clangwrap.sh)
+    set(CC_FOR_TARGET ${GOROOT}/misc/ios/clangwrap.sh)
   endif()
   
   set(BUILDMODE c-archive)
