@@ -1,0 +1,40 @@
+name: "Analyze"
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - "main"
+
+jobs:
+  analyzes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v3"
+        with:
+          submodules: "recursive"
+
+      - name: "Add dart support"
+        uses: dart-lang/setup-dart@v1
+
+      # Requires flutter pub get and flutter sdk
+      #- name: "Install dependencies"
+      #  run: dart pub get
+
+      - name: "Setup flutter"
+        uses: "subosito/flutter-action@v2.4.0"
+
+      - name: "Fetch via flutter dependencies"
+        run: "flutter pub get"
+
+      - name: "Run static analysis"
+        run: "dart analyze"
+
+      - name: "Check outdated packages"
+        run: "dart pub outdated"
+
+  
