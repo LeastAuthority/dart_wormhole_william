@@ -41,13 +41,11 @@ file(GLOB_RECURSE WORMHOLE_WILLIAM_SRC_FILES
   ${WORMHOLE_WILLIAM_GO_DIR}/c/**.c
   ${WORMHOLE_WILLIAM_GO_DIR}/c/**.h)
 
-# in case GOCMD is not set, try to find it
-find_program(GOCMD go)
-if(NOT GOCMD)
-    message(FATAL_ERROR "go executable not found")
-else()
-  # still try to call for go, helps to run in CI
-  set(GOCMD go)
+if(NOT DEFINED GOCMD)
+  find_program(GOCMD go)
+  if (NOT DEFINED GOCMD)
+    message(FATAL_ERROR "go executable not set")
+  endif()
 endif()
 
 add_custom_command(
