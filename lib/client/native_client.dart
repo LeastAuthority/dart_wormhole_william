@@ -140,7 +140,8 @@ class Config {
 }
 
 class NativeClient {
-  //late final DynamicLibrary _wormholeWilliamLib;
+  // ignore: unused_field
+  late final DynamicLibrary _wormholeWilliamLib;
   late final DynamicLibrary _asyncCallbackLib;
 
   late final Config config;
@@ -150,6 +151,8 @@ class NativeClient {
     if (Platform.isIOS) {
       _asyncCallbackLib = DynamicLibrary.executable();
     } else {
+      // Necessary to load library for macOS to work
+      _wormholeWilliamLib = DynamicLibrary.open(libName("wormhole_william"));
       _asyncCallbackLib = DynamicLibrary.open(libName("bindings"));
     }
 
