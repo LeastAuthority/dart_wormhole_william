@@ -7,7 +7,7 @@ Pod::Spec.new do |s|
   s.version          = '0.0.1'
   s.summary          = 'A new flutter plugin project.'
   s.prepare_command = <<-CMD
-        mkdir build
+        mkdir -p build
 			  cd build
 			  cmake --trace ../
 			  make
